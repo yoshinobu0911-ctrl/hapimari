@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { containsFraudWord, findFraudWords, FRAUD_WORDS } from '../src/fraud_words';
+import { containsFraudWord, FRAUD_WORDS, findFraudWords } from '../src/fraud_words';
 
 describe('FRAUD_WORDS 辞書', () => {
   it('初期辞書は50語ある（SPEC §4 R8）', () => {

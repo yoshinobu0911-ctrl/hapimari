@@ -15,6 +15,13 @@
 - CHECK 制約は「登録時点」でのみ評価されるため、既存行が誕生日経過で違反状態になることはない（挿入・更新時のみ評価）。
 - **暫定判断**: この実装で問題ないか、レビュー時に確認。
 
-### Q2. matches.call_unlocked の閾値
+### Q2. verifications の RLS と「審査待ち画面」（M2）の整合
+- SPEC §3 RLS方針「verifications/reports の閲覧・更新は service_role（管理画面）のみ」に従い、
+  申請者本人も自分の verifications 行を SELECT できない設計にした（INSERTのみ許可）。
+- M2 の「審査待ち画面」で申請ステータスを表示する場合、
+  (a) 本人のみSELECT可のポリシーを追加する、(b) Edge Function 経由で返す、のどちらかが必要。
+- **暫定判断**: M2 実装時に (a) を提案予定。問題があればレビュー時に指摘してほしい。
+
+### Q3. matches.call_unlocked の閾値
 - §3.3 の generated column は `message_count >= 10`（5往復=10メッセージで通話解禁）。
 - §4 R5「message_count>=10（5往復）で通話解禁、>=20（10往復）でデート打診」と整合しているため、そのまま実装。

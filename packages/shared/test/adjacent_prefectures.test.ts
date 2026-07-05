@@ -1,9 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  ADJACENT_PREFECTURES,
-  PREFECTURES,
-  searchArea,
-} from '../src/adjacent_prefectures';
+import { ADJACENT_PREFECTURES, PREFECTURES, searchArea } from '../src/adjacent_prefectures';
 
 describe('ADJACENT_PREFECTURES', () => {
   it('47都道府県すべてにエントリがある', () => {
@@ -26,7 +22,7 @@ describe('ADJACENT_PREFECTURES', () => {
   });
 
   it('沖縄県は隣接なし', () => {
-    expect(ADJACENT_PREFECTURES['沖縄県']).toEqual([]);
+    expect(ADJACENT_PREFECTURES.沖縄県).toEqual([]);
   });
 
   it('searchArea は居住県＋隣接県を返す（R10: 東京都→千葉・埼玉・神奈川・山梨）', () => {

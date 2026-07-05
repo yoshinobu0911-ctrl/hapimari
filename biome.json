@@ -8,13 +8,15 @@
   "files": {
     "includes": [
       "**",
-      "!**/node_modules/**",
-      "!**/.next/**",
-      "!**/.expo/**",
-      "!**/dist/**",
-      "!**/.turbo/**",
-      "!supabase/.temp/**",
-      "!packages/shared/src/types/database.ts"
+      "!**/node_modules",
+      "!**/.next",
+      "!**/.expo",
+      "!**/dist",
+      "!**/.turbo",
+      "!supabase/.temp",
+      "!packages/shared/src/types/database.ts",
+      "!**/*.svg",
+      "!apps/admin/app/globals.css"
     ]
   },
   "formatter": {
@@ -26,7 +28,7 @@
   "linter": {
     "enabled": true,
     "rules": {
-      "recommended": true
+      "preset": "recommended"
     }
   },
   "javascript": {

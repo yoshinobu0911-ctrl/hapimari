@@ -1,0 +1,25 @@
+{
+  "name": "hapimari",
+  "private": true,
+  "packageManager": "pnpm@11.10.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "biome check .",
+    "format": "biome format --write .",
+    "test": "turbo run test",
+    "db:start": "supabase start",
+    "db:stop": "supabase stop",
+    "db:reset": "supabase db reset",
+    "db:types": "supabase gen types typescript --local > packages/shared/src/types/database.ts",
+    "seed": "supabase db reset"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.2",
+    "supabase": "^2.109.0",
+    "turbo": "^2.10.3"
+  }
+}

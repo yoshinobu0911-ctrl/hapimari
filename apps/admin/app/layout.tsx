@@ -10,9 +10,9 @@ export const metadata: Metadata = {
 const NAV_ITEMS = [
   { href: '/', label: 'ダッシュボード' },
   { href: '/verifications', label: '本人確認審査' },
-  { href: '/reports', label: '通報対応（M3）' },
-  { href: '/users', label: 'ユーザー（M3）' },
-  { href: '/flagged', label: 'flaggedメッセージ（M3）' },
+  { href: '/reports', label: '通報対応' },
+  { href: '/users', label: 'ユーザー検索・凍結' },
+  { href: '/flagged', label: 'flaggedメッセージ' },
   { href: '/transparency', label: '透明性レポート（M6）' },
 ];
 

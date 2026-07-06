@@ -3,7 +3,7 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 export const dynamic = 'force-dynamic';
 
 export default async function Dashboard() {
-  const [total, males, females, pending, matches, openReports] = await Promise.all([
+  const [total, males, females, pending, matches, openReports, flagged] = await Promise.all([
     supabaseAdmin.from('profiles').select('*', { count: 'exact', head: true }),
     supabaseAdmin.from('profiles').select('*', { count: 'exact', head: true }).eq('gender', 'male'),
     supabaseAdmin
@@ -16,6 +16,7 @@ export default async function Dashboard() {
       .eq('status', 'pending'),
     supabaseAdmin.from('matches').select('*', { count: 'exact', head: true }),
     supabaseAdmin.from('reports').select('*', { count: 'exact', head: true }).eq('status', 'open'),
+    supabaseAdmin.from('messages').select('*', { count: 'exact', head: true }).eq('flagged', true),
   ]);
 
   const cards = [
@@ -35,12 +36,17 @@ export default async function Dashboard() {
       value: `${openReports.count ?? 0}件`,
       highlight: (openReports.count ?? 0) > 0,
     },
+    {
+      label: 'flaggedメッセージ',
+      value: `${flagged.count ?? 0}件`,
+      highlight: (flagged.count ?? 0) > 0,
+    },
   ];
 
   return (
     <div>
       <h1 className="mb-6 text-2xl font-bold">ダッシュボード</h1>
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
         {cards.map((card) => (
           <div
             key={card.label}

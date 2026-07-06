@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { type CompatibilityInput, calcCompatibility } from '../src/compatibility';
+import {
+  COMPATIBILITY_DISPLAY_MIN,
+  type CompatibilityInput,
+  calcCompatibility,
+  shouldShowCompatibility,
+} from '../src/compatibility';
 import { VALUE_TAG_LABELS, VALUE_TAGS, valueTagsByCategory } from '../src/value_tags';
 
 const base: CompatibilityInput = {
@@ -68,5 +73,15 @@ describe('calcCompatibility', () => {
     const far = calcCompatibility(base, { ...base, marriageIntent: 'partner_only' });
     expect(same).toBeGreaterThan(adjacent);
     expect(adjacent).toBeGreaterThan(far);
+  });
+});
+
+describe('shouldShowCompatibility（相性は85%以上のみ表示）', () => {
+  it('85%以上でtrue、85%未満でfalse', () => {
+    expect(COMPATIBILITY_DISPLAY_MIN).toBe(85);
+    expect(shouldShowCompatibility(85)).toBe(true);
+    expect(shouldShowCompatibility(98)).toBe(true);
+    expect(shouldShowCompatibility(84)).toBe(false);
+    expect(shouldShowCompatibility(40)).toBe(false);
   });
 });

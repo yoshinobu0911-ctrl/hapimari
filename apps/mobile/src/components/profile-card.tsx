@@ -1,4 +1,4 @@
-import { calcAge } from '@hapimari/shared';
+import { calcAge, shouldShowCompatibility } from '@hapimari/shared';
 import { Image } from 'expo-image';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors, sizes, spacing } from '@/constants/theme';
@@ -13,15 +13,21 @@ interface Props {
 
 /**
  * discover のカード（グリッド表示・スワイプUIにしない: SPEC §5）
- * 表示は「写真・名前・年齢・相性」の4点のみ。文字は写真に重ねない。
+ * 表示は「写真・名前・年齢・相性」のみ。文字は写真に重ねない。
+ * 相性%は85%以上のときだけ表示する（特別感を出すプロダクト仕様）。
  * 結婚歴・子どもの有無などの事情はプロフィール詳細（M3）で伝える。
  */
 export function ProfileCard({ profile, compatibility, onPress }: Props) {
   const photo = profile.photo_urls?.[0];
+  const showCompatibility = shouldShowCompatibility(compatibility);
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${profile.nickname}さん ${calcAge(profile.birth_date)}歳 相性${compatibility}パーセント`}
+      accessibilityLabel={
+        showCompatibility
+          ? `${profile.nickname}さん ${calcAge(profile.birth_date)}歳 相性${compatibility}パーセント`
+          : `${profile.nickname}さん ${calcAge(profile.birth_date)}歳`
+      }
       onPress={onPress}
       style={({ pressed }) => [styles.card, pressed && { opacity: 0.85 }]}
     >
@@ -37,7 +43,7 @@ export function ProfileCard({ profile, compatibility, onPress }: Props) {
           {profile.nickname}
           <Text style={styles.age}> {calcAge(profile.birth_date)}歳</Text>
         </Text>
-        <Text style={styles.compatibility}>相性 {compatibility}%</Text>
+        {showCompatibility ? <Text style={styles.compatibility}>相性 {compatibility}%</Text> : null}
       </View>
     </Pressable>
   );

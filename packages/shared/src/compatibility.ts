@@ -27,6 +27,17 @@ const WEIGHTS = {
 const DISPLAY_MIN = 40;
 const DISPLAY_MAX = 98;
 
+/**
+ * カード上で相性%を表示する下限（これ未満はスコアを出さず写真・名前・年齢のみ）。
+ * 「相性が高い人にだけ特別感を出す」ためのプロダクト仕様（2026-07-06 指示）。
+ */
+export const COMPATIBILITY_DISPLAY_MIN = 85;
+
+/** カードに相性%を表示すべきか */
+export function shouldShowCompatibility(score: number): boolean {
+  return score >= COMPATIBILITY_DISPLAY_MIN;
+}
+
 function overlapRatio(a: readonly string[], b: readonly string[]): number | null {
   if (a.length === 0 || b.length === 0) return null; // 情報なし→中立扱い
   const setB = new Set(b);

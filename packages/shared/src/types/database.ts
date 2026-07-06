@@ -448,6 +448,10 @@ export type Database = {
     }
     Functions: {
       is_match_participant: { Args: { target_match: string }; Returns: boolean }
+      review_verification: {
+        Args: { approve: boolean; reason?: string; verification_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never

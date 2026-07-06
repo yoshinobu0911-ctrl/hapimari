@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
+import { RealtimeProfileSync } from '@/components/realtime-profile-sync';
 import { colors } from '@/constants/theme';
 import { startAuthListener, useAuthStore } from '@/stores/auth';
 
@@ -43,6 +44,7 @@ export default function RootLayout() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider value={appTheme}>
+        <RealtimeProfileSync />
         <Stack
           screenOptions={{
             headerShown: false,

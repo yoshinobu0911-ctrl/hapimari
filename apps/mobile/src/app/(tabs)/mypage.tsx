@@ -85,10 +85,16 @@ export default function MyPage() {
         </Text>
       </View>
       {!profile.is_verified ? (
-        <Text style={styles.verifyNote}>
-          ※本人確認が完了するまでメッセージの送信はできません。（書類提出の受付は準備中です）
-        </Text>
+        <Text style={styles.verifyNote}>※本人確認が完了するまでメッセージの送信はできません。</Text>
       ) : null}
+      <View style={styles.verifyButton}>
+        <AppButton
+          label="証明書類を提出する"
+          variant={profile.is_verified ? 'secondary' : 'primary'}
+          onPress={() => router.push('/upload')}
+          testID="mypage-verification"
+        />
+      </View>
 
       {profile.bio ? <Text style={styles.bio}>{profile.bio}</Text> : null}
 
@@ -165,6 +171,9 @@ const styles = StyleSheet.create({
     color: colors.danger,
     lineHeight: 24,
     marginBottom: spacing.md,
+  },
+  verifyButton: {
+    marginBottom: spacing.lg,
   },
   bio: {
     fontSize: fontSize.body,

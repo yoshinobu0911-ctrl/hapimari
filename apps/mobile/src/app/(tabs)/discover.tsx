@@ -1,13 +1,15 @@
-import { type CompatibilityInput, calcCompatibility } from '@hapimari/shared';
+import { type CompatibilityInput, calcCompatibility, countActiveFilters } from '@hapimari/shared';
 import { useQuery } from '@tanstack/react-query';
-import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-native';
+import { useRouter } from 'expo-router';
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ProfileCard } from '@/components/profile-card';
-import { colors, fontSize, spacing } from '@/constants/theme';
+import { colors, fontSize, sizes, spacing } from '@/constants/theme';
 import { useMyProfile } from '@/hooks/use-my-profile';
-import { infoDialog } from '@/lib/confirm';
-import { type Profile, supabase } from '@/lib/supabase';
+import { fetchDiscoverProfiles } from '@/lib/discover-query';
+import type { Profile } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/auth';
+import { useFilterStore } from '@/stores/filter';
 
 function toCompatInput(p: Profile): CompatibilityInput {
   return {
@@ -22,32 +24,27 @@ function toCompatInput(p: Profile): CompatibilityInput {
 }
 
 /**
- * さがす（M1改: 価値観マッチング）
+ * さがす（M3: フィルタ検索・R10隣接県デフォルト・詳細画面への導線）
  * カードは「写真・名前・年齢・相性」のみ。相性の高い順に表示する。
- * フィルタ検索・R10隣接県デフォルトは M3 で実装する。
  */
 export default function Discover() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const session = useAuthStore((s) => s.session);
   const { data: myProfile } = useMyProfile();
-
-  // 異性のみ表示（M3で検索条件として拡張）
-  const targetGender = myProfile?.gender === 'male' ? 'female' : 'male';
+  const filter = useFilterStore((s) => s.filter);
+  const activeCount = countActiveFilters(filter);
 
   const query = useQuery({
-    queryKey: ['discover', session?.user.id, targetGender],
+    queryKey: ['discover', session?.user.id, filter],
     enabled: !!session && !!myProfile,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .neq('id', session?.user.id ?? '')
-        .eq('status', 'active')
-        .eq('gender', targetGender)
-        .order('created_at', { ascending: false })
-        .limit(60);
-      if (error) throw error;
-      return data;
+      if (!myProfile) return [];
+      return fetchDiscoverProfiles(filter, {
+        id: myProfile.id,
+        gender: myProfile.gender as 'male' | 'female',
+        prefecture: myProfile.prefecture,
+      });
     },
   });
 
@@ -61,7 +58,20 @@ export default function Discover() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + spacing.md }]}>
-      <Text style={styles.title}>お相手をさがす</Text>
+      <View style={styles.titleRow}>
+        <Text style={styles.title}>お相手をさがす</Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="絞り込み"
+          testID="discover-filter"
+          onPress={() => router.push('/modal/filter')}
+          style={[styles.filterButton, activeCount > 0 && styles.filterButtonActive]}
+        >
+          <Text style={[styles.filterButtonText, activeCount > 0 && styles.filterButtonTextActive]}>
+            {activeCount > 0 ? `絞り込み中(${activeCount})` : '絞り込み'}
+          </Text>
+        </Pressable>
+      </View>
       {query.isPending ? (
         <View style={styles.center}>
           <ActivityIndicator size="large" color={colors.primary} />
@@ -81,16 +91,16 @@ export default function Discover() {
           contentContainerStyle={styles.list}
           ListEmptyComponent={
             <View style={styles.center}>
-              <Text style={styles.empty}>表示できるお相手がまだいません。</Text>
+              <Text style={styles.empty}>
+                条件に合うお相手が見つかりませんでした。{'\n'}絞り込み条件を変えてお試しください。
+              </Text>
             </View>
           }
           renderItem={({ item }) => (
             <ProfileCard
               profile={item.profile}
               compatibility={item.compatibility}
-              onPress={() =>
-                infoDialog('プロフィール詳細', '詳細画面と「いいね」はM3で実装予定です。')
-              }
+              onPress={() => router.push(`/profile/${item.profile.id}`)}
             />
           )}
         />
@@ -105,12 +115,36 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
     paddingHorizontal: spacing.sm,
   },
+  titleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+    paddingHorizontal: spacing.sm,
+  },
   title: {
     fontSize: fontSize.title,
     fontWeight: '700',
     color: colors.text,
-    marginBottom: spacing.sm,
-    paddingHorizontal: spacing.sm,
+  },
+  filterButton: {
+    minHeight: sizes.tapArea,
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.primary,
+    borderRadius: sizes.radius,
+    paddingHorizontal: spacing.md,
+  },
+  filterButtonActive: {
+    backgroundColor: colors.primary,
+  },
+  filterButtonText: {
+    fontSize: fontSize.body,
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  filterButtonTextActive: {
+    color: colors.textOnPrimary,
   },
   list: {
     paddingBottom: spacing.xl,

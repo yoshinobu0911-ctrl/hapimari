@@ -5,9 +5,9 @@
  * ここでは PostgREST のメソッド適用だけを薄く行う。
  */
 import {
+  buildDiscoverConditions,
   type DiscoverConditions,
   type DiscoverFilter,
-  buildDiscoverConditions,
 } from '@hapimari/shared';
 import { type Profile, supabase } from '@/lib/supabase';
 

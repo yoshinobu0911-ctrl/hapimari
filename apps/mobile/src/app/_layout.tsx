@@ -50,7 +50,10 @@ export default function RootLayout() {
             headerShown: false,
             contentStyle: { backgroundColor: colors.background },
           }}
-        />
+        >
+          <Stack.Screen name="modal/filter" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="modal/report-block" options={{ presentation: 'modal' }} />
+        </Stack>
       </ThemeProvider>
     </QueryClientProvider>
   );

@@ -8,8 +8,13 @@ export const MIN_AGE = {
   male: 45,
 } as const;
 
-/** R4: 同一女性が24時間に受け取る「いいね」上限 */
-export const FEMALE_DAILY_LIKE_LIMIT = 20;
+/**
+ * R4: 同一女性が24時間に受け取る「いいね」の表示上限。
+ * 超過分は拒否せず翌日以降に繰り越して表示する（like_visibility.ts）。
+ * 2026-07-06 オーナー決定で 20→100 に変更（実質セーフティネット扱い。
+ * docs/decisions/2026-07-06_M3設計判断.md 参照）
+ */
+export const FEMALE_DAILY_LIKE_LIMIT = 100;
 
 /** R5: 通話解禁のメッセージ数（5往復=10メッセージ） */
 export const CALL_UNLOCK_MESSAGE_COUNT = 10;

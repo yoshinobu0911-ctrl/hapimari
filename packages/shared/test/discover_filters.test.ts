@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { searchArea } from '../src/adjacent_prefectures';
 import {
-  DEFAULT_DISCOVER_FILTER,
-  type DiscoverFilter,
   buildDiscoverConditions,
   countActiveFilters,
+  DEFAULT_DISCOVER_FILTER,
+  type DiscoverFilter,
 } from '../src/discover_filters';
 
 const NOW = new Date('2026-07-06T12:00:00+09:00');
@@ -75,8 +75,7 @@ describe('buildDiscoverConditions', () => {
       ).maritalHistories,
     ).toBeNull();
     expect(
-      buildDiscoverConditions(filter({ maritalHistories: ['divorced'] }), me, NOW)
-        .maritalHistories,
+      buildDiscoverConditions(filter({ maritalHistories: ['divorced'] }), me, NOW).maritalHistories,
     ).toEqual(['divorced']);
   });
 

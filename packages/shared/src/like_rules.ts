@@ -70,10 +70,10 @@ export function validateLike(
   if (sender.status !== 'active') return fail('not_active');
 
   // 2. 自分自身へのいいね禁止
-  if (target && sender.id === target.id) return fail('self_like');
+  if (target?.id === sender.id) return fail('self_like');
 
   // 3. 相手が存在し active かつ異性であること
-  if (!target || target.status !== 'active' || target.gender === sender.gender) {
+  if (target?.status !== 'active' || target.gender === sender.gender) {
     return fail('target_not_found');
   }
 

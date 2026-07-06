@@ -55,9 +55,7 @@ export function assignVisibleDates<T extends { created_at: string | null }>(
   limit: number,
   now: Date = new Date(),
 ): LikeVisibilityResult<T> {
-  const sorted = [...likes].sort((a, b) =>
-    (a.created_at ?? '').localeCompare(b.created_at ?? ''),
-  );
+  const sorted = [...likes].sort((a, b) => (a.created_at ?? '').localeCompare(b.created_at ?? ''));
   const today = toJstDateString(now);
 
   const assignments: AssignedLike<T>[] = [];

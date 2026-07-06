@@ -52,11 +52,18 @@ const PROFILE_COLUMNS = 'id, gender, status, has_children, understands_children'
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   if (req.method !== 'POST') {
-    return json(405, { ok: false, error: 'method_not_allowed', message: 'POSTのみ対応しています。' });
+    return json(405, {
+      ok: false,
+      error: 'method_not_allowed',
+      message: 'POSTのみ対応しています。',
+    });
   }
 
+  // これらの環境変数は Supabase Edge Runtime が自動注入する（.envには書かない）
   const admin = createClient(
+    // biome-ignore lint/suspicious/noUndeclaredEnvVars: Edge Runtimeが注入
     Deno.env.get('SUPABASE_URL') ?? '',
+    // biome-ignore lint/suspicious/noUndeclaredEnvVars: Edge Runtimeが注入
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
   );
 
@@ -114,7 +121,11 @@ Deno.serve(async (req) => {
     b: toUser,
   });
   if (blockedError) {
-    return json(500, { ok: false, error: 'internal', message: 'エラーが発生しました。時間をおいてお試しください。' });
+    return json(500, {
+      ok: false,
+      error: 'internal',
+      message: 'エラーが発生しました。時間をおいてお試しください。',
+    });
   }
 
   const verdict = validateLike(
@@ -156,7 +167,11 @@ Deno.serve(async (req) => {
         message: 'このお相手にはすでにいいねを送っています。',
       });
     }
-    return json(500, { ok: false, error: 'internal', message: 'エラーが発生しました。時間をおいてお試しください。' });
+    return json(500, {
+      ok: false,
+      error: 'internal',
+      message: 'エラーが発生しました。時間をおいてお試しください。',
+    });
   }
 
   // 8. R4: 相手が女性なら直近24hの被いいね数を数え、上限超過なら carriedOver（拒否はしない）

@@ -17,6 +17,7 @@ import { AppTextField } from '@/components/ui/app-text-field';
 import { ChoiceGroup, MultiChoiceGroup } from '@/components/ui/choice-group';
 import { PrefectureField } from '@/components/ui/prefecture-field';
 import { Screen } from '@/components/ui/screen';
+import { ValueTagsSelector } from '@/components/ui/value-tags-selector';
 import { colors, fontSize, sizes, spacing } from '@/constants/theme';
 import { useMyProfile } from '@/hooks/use-my-profile';
 import { type ProfileUpdate, supabase } from '@/lib/supabase';
@@ -40,6 +41,7 @@ export default function ProfileEdit() {
   const [availableTimes, setAvailableTimes] = useState<AvailableTime[]>(
     (profile?.available_times as AvailableTime[] | null) ?? [],
   );
+  const [valueTags, setValueTags] = useState<string[]>(profile?.value_tags ?? []);
   const [cohabitView, setCohabitView] = useState(profile?.cohabit_view ?? '');
   const [moneyView, setMoneyView] = useState(profile?.money_view ?? '');
   const [bio, setBio] = useState(profile?.bio ?? '');
@@ -72,6 +74,10 @@ export default function ProfileEdit() {
       setError('お住まいの都道府県を選択してください');
       return;
     }
+    if (valueTags.length < 3) {
+      setError('価値観タグは3つ以上選んでください（相性の判定に使われます）');
+      return;
+    }
     setSaving(true);
     try {
       let photoUrls = profile.photo_urls ?? [];
@@ -85,6 +91,7 @@ export default function ProfileEdit() {
         city: city.trim() || null,
         marriage_intent: marriageIntent,
         available_times: availableTimes,
+        value_tags: valueTags,
         cohabit_view: cohabitView.trim() || null,
         money_view: moneyView.trim() || null,
         bio: bio.trim() || null,
@@ -133,6 +140,8 @@ export default function ProfileEdit() {
         onChangeText={setCity}
         testID="edit-city"
       />
+      <Text style={styles.sectionTitle}>大切にしたい価値観（3つ以上）</Text>
+      <ValueTagsSelector values={valueTags} onChange={setValueTags} />
       <ChoiceGroup
         label="結婚への考え"
         options={MARRIAGE_INTENTS}
@@ -194,6 +203,12 @@ const styles = StyleSheet.create({
   placeholderText: {
     fontSize: fontSize.small,
     color: colors.textSub,
+  },
+  sectionTitle: {
+    fontSize: fontSize.label,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: spacing.sm,
   },
   error: {
     fontSize: fontSize.body,

@@ -6,6 +6,7 @@ import { AppButton } from '@/components/ui/app-button';
 import { AppTextField } from '@/components/ui/app-text-field';
 import { ChoiceGroup, MultiChoiceGroup } from '@/components/ui/choice-group';
 import { Screen } from '@/components/ui/screen';
+import { ValueTagsSelector } from '@/components/ui/value-tags-selector';
 import { colors, fontSize, spacing } from '@/constants/theme';
 import { useOnboardingStore } from '@/stores/onboarding';
 
@@ -16,6 +17,10 @@ export default function Step3() {
 
   const next = () => {
     setError(null);
+    if (draft.valueTags.length < 3) {
+      setError('あなたの価値観に近いタグを3つ以上選んでください（相性の判定に使われます）');
+      return;
+    }
     if (!draft.marriageIntent) {
       setError('結婚への考えを選択してください');
       return;
@@ -28,7 +33,14 @@ export default function Step3() {
   };
 
   return (
-    <Screen title="価値観（3/4)" subtitle="あなたの考えに近いものをお選びください。">
+    <Screen
+      title="価値観（3/4)"
+      subtitle="あなたの考えに近いものをお選びください。お相手との相性の判定に使われます。"
+    >
+      <Text style={styles.sectionTitle}>
+        大切にしたい価値観<Text style={styles.required}>（3つ以上・必須）</Text>
+      </Text>
+      <ValueTagsSelector values={draft.valueTags} onChange={(v) => draft.set({ valueTags: v })} />
       <ChoiceGroup
         label="結婚への考え"
         required
@@ -73,6 +85,16 @@ export default function Step3() {
 }
 
 const styles = StyleSheet.create({
+  sectionTitle: {
+    fontSize: fontSize.label,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: spacing.sm,
+  },
+  required: {
+    color: colors.primary,
+    fontWeight: '400',
+  },
   error: {
     fontSize: fontSize.body,
     color: colors.danger,

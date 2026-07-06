@@ -294,6 +294,7 @@ export type Database = {
           status: string
           understands_children: boolean
           understands_remarriage: boolean
+          value_tags: string[]
           voice_profile_url: string | null
         }
         Insert: {
@@ -320,6 +321,7 @@ export type Database = {
           status?: string
           understands_children?: boolean
           understands_remarriage?: boolean
+          value_tags?: string[]
           voice_profile_url?: string | null
         }
         Update: {
@@ -346,6 +348,7 @@ export type Database = {
           status?: string
           understands_children?: boolean
           understands_remarriage?: boolean
+          value_tags?: string[]
           voice_profile_url?: string | null
         }
         Relationships: []

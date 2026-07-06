@@ -18,6 +18,7 @@ export interface OnboardingDraft {
   understandsChildren: boolean;
   understandsRemarriage: boolean;
   // step3: 価値観
+  valueTags: string[];
   marriageIntent: MarriageIntent | null;
   cohabitView: string;
   moneyView: string;
@@ -44,6 +45,7 @@ const initialDraft: OnboardingDraft = {
   okChildDate: null,
   understandsChildren: false,
   understandsRemarriage: false,
+  valueTags: [],
   marriageIntent: null,
   cohabitView: '',
   moneyView: '',

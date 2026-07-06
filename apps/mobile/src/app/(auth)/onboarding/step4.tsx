@@ -68,6 +68,7 @@ export default function Step4() {
         money_view: draft.moneyView.trim() || null,
         bio: draft.bio.trim() || null,
         available_times: draft.availableTimes,
+        value_tags: draft.valueTags,
         understands_children: draft.understandsChildren,
         understands_remarriage: draft.understandsRemarriage,
         photo_urls: photoUrls,

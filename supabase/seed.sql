@@ -203,3 +203,25 @@ insert into messages (match_id, sender, body, created_at) values
 ('10000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000014', 'こちらこそ、よろしくお願いします。', now() - interval '1 day' + interval '20 minutes'),
 ('10000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000002', 'お嬢さん、中学生なんですね。私の子と同じ年頃です。', now() - interval '1 day' + interval '45 minutes'),
 ('10000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000014', 'そうなんです。同じ子育て世代で心強いです。', now() - interval '1 day' + interval '60 minutes');
+
+-- ---- 価値観タグ（相性判定用・辞書は packages/shared/src/value_tags.ts） ----
+update profiles set value_tags = '{comm_lunch,hobby_cooking,char_calm,family_time,money_sense}' where id = '00000000-0000-0000-0000-000000000001';
+update profiles set value_tags = '{family_respect_kids,family_kids_like,comm_slow,hobby_movie,char_thanks}' where id = '00000000-0000-0000-0000-000000000002';
+update profiles set value_tags = '{family_soon,money_dual,comm_lunch,hobby_travel}' where id = '00000000-0000-0000-0000-000000000003';
+update profiles set value_tags = '{family_no_seki,living_flex,char_calm,hobby_walk,money_steady}' where id = '00000000-0000-0000-0000-000000000004';
+update profiles set value_tags = '{comm_frequent,hobby_movie,money_sense}' where id = '00000000-0000-0000-0000-000000000005';
+update profiles set value_tags = '{family_kids_like,family_respect_kids,comm_lunch,hobby_cooking,char_listener,money_steady}' where id = '00000000-0000-0000-0000-000000000006';
+update profiles set value_tags = '{living_country,hobby_walk,char_calm,family_no_seki,money_simple}' where id = '00000000-0000-0000-0000-000000000007';
+update profiles set value_tags = '{money_dual,comm_mypace,hobby_movie,char_humor}' where id = '00000000-0000-0000-0000-000000000008';
+update profiles set value_tags = '{family_soon,comm_lunch,char_thanks,hobby_travel,money_sense}' where id = '00000000-0000-0000-0000-000000000009';
+update profiles set value_tags = '{hobby_travel,hobby_onsen,family_no_seki,money_steady,char_calm,living_flex}' where id = '00000000-0000-0000-0000-000000000010';
+update profiles set value_tags = '{comm_meet,hobby_together,char_humor,money_sense}' where id = '00000000-0000-0000-0000-000000000011';
+update profiles set value_tags = '{hobby_movie,comm_slow,char_listener,money_simple}' where id = '00000000-0000-0000-0000-000000000012';
+update profiles set value_tags = '{family_time,family_kids_like,comm_lunch,hobby_cooking,char_thanks,money_sense}' where id = '00000000-0000-0000-0000-000000000013';
+update profiles set value_tags = '{comm_slow,family_time,char_calm,hobby_walk,money_steady}' where id = '00000000-0000-0000-0000-000000000014';
+update profiles set value_tags = '{comm_lunch,family_kids_like,money_dual,char_humor}' where id = '00000000-0000-0000-0000-000000000015';
+update profiles set value_tags = '{family_soon,hobby_together,comm_frequent,money_sense,char_thanks}' where id = '00000000-0000-0000-0000-000000000016';
+update profiles set value_tags = '{family_time,comm_lunch,hobby_onsen,char_listener,money_steady}' where id = '00000000-0000-0000-0000-000000000017';
+update profiles set value_tags = '{family_no_seki,living_flex,char_calm,hobby_walk,money_simple}' where id = '00000000-0000-0000-0000-000000000018';
+update profiles set value_tags = '{hobby_travel,hobby_movie,comm_mypace,char_humor,money_steady}' where id = '00000000-0000-0000-0000-000000000019';
+update profiles set value_tags = '{hobby_together,hobby_onsen,comm_meet,family_soon,money_dual}' where id = '00000000-0000-0000-0000-000000000020';

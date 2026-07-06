@@ -1,35 +1,63 @@
+import { type CompatibilityInput, calcCompatibility } from '@hapimari/shared';
 import { useQuery } from '@tanstack/react-query';
 import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ProfileCard } from '@/components/profile-card';
 import { colors, fontSize, spacing } from '@/constants/theme';
+import { useMyProfile } from '@/hooks/use-my-profile';
 import { infoDialog } from '@/lib/confirm';
-import { supabase } from '@/lib/supabase';
+import { type Profile, supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/auth';
 
+function toCompatInput(p: Profile): CompatibilityInput {
+  return {
+    valueTags: p.value_tags ?? [],
+    availableTimes: p.available_times ?? [],
+    marriageIntent: p.marriage_intent,
+    maritalHistory: p.marital_history,
+    hasChildren: p.has_children,
+    understandsChildren: p.understands_children,
+    understandsRemarriage: p.understands_remarriage,
+  };
+}
+
 /**
- * さがす（M1: 自分以外のactiveユーザーをグリッド表示）
+ * さがす（M1改: 価値観マッチング）
+ * カードは「写真・名前・年齢・相性」のみ。相性の高い順に表示する。
  * フィルタ検索・R10隣接県デフォルトは M3 で実装する。
  */
 export default function Discover() {
   const insets = useSafeAreaInsets();
   const session = useAuthStore((s) => s.session);
+  const { data: myProfile } = useMyProfile();
+
+  // 異性のみ表示（M3で検索条件として拡張）
+  const targetGender = myProfile?.gender === 'male' ? 'female' : 'male';
 
   const query = useQuery({
-    queryKey: ['discover', session?.user.id],
-    enabled: !!session,
+    queryKey: ['discover', session?.user.id, targetGender],
+    enabled: !!session && !!myProfile,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .neq('id', session?.user.id ?? '')
         .eq('status', 'active')
+        .eq('gender', targetGender)
         .order('created_at', { ascending: false })
         .limit(60);
       if (error) throw error;
       return data;
     },
   });
+
+  const me = myProfile ? toCompatInput(myProfile) : null;
+  const candidates = (query.data ?? [])
+    .map((p) => ({
+      profile: p,
+      compatibility: me ? calcCompatibility(me, toCompatInput(p)) : 50,
+    }))
+    .sort((a, b) => b.compatibility - a.compatibility);
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + spacing.md }]}>
@@ -45,8 +73,8 @@ export default function Discover() {
       ) : (
         <FlatList
           testID="discover-list"
-          data={query.data}
-          keyExtractor={(item) => item.id}
+          data={candidates}
+          keyExtractor={(item) => item.profile.id}
           numColumns={2}
           refreshing={query.isRefetching}
           onRefresh={() => query.refetch()}
@@ -58,7 +86,8 @@ export default function Discover() {
           }
           renderItem={({ item }) => (
             <ProfileCard
-              profile={item}
+              profile={item.profile}
+              compatibility={item.compatibility}
               onPress={() =>
                 infoDialog('プロフィール詳細', '詳細画面と「いいね」はM3で実装予定です。')
               }

@@ -34,6 +34,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      blocks: {
+        Row: {
+          blocked: string
+          blocker: string
+          created_at: string | null
+          id: string
+        }
+        Insert: {
+          blocked: string
+          blocker: string
+          created_at?: string | null
+          id?: string
+        }
+        Update: {
+          blocked?: string
+          blocker?: string
+          created_at?: string | null
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "blocks_blocked_fkey"
+            columns: ["blocked"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "blocks_blocker_fkey"
+            columns: ["blocker"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       calls: {
         Row: {
           created_at: string | null
@@ -145,6 +181,18 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      fraud_words: {
+        Row: {
+          word: string
+        }
+        Insert: {
+          word: string
+        }
+        Update: {
+          word?: string
+        }
+        Relationships: []
       }
       likes: {
         Row: {
@@ -447,6 +495,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      is_blocked_between: { Args: { a: string; b: string }; Returns: boolean }
       is_match_participant: { Args: { target_match: string }; Returns: boolean }
       review_verification: {
         Args: { approve: boolean; reason?: string; verification_id: string }

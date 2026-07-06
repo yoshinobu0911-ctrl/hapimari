@@ -104,6 +104,12 @@ export default function MyPage() {
           onPress={() => router.push('/profile-edit')}
           testID="mypage-edit"
         />
+        <AppButton
+          label="ブロックしたユーザー"
+          variant="secondary"
+          onPress={() => router.push('/settings/blocked')}
+          testID="mypage-blocked"
+        />
         <AppButton label="ログアウト" variant="secondary" onPress={logout} testID="mypage-logout" />
         <AppButton
           label="退会について"

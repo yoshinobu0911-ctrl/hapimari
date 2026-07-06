@@ -1,65 +1,46 @@
 /**
- * Below are the colors that are used in the app. The colors are defined in the light and dark mode.
- * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
+ * デザイントークン（SPEC §2 UI/UX基準）
+ * - 最小フォント16pt / 主要ボタン高さ48pt以上 / タップ領域44pt以上
+ * - プライマリ #C0392B 系の落ち着いた暖色、背景は白基調
+ * - 派手なグラデーション・アニメーション禁止
  */
 
-import '@/global.css';
-
-import { Platform } from 'react-native';
-
-export const Colors = {
-  light: {
-    text: '#000000',
-    background: '#ffffff',
-    backgroundElement: '#F0F0F3',
-    backgroundSelected: '#E0E1E6',
-    textSecondary: '#60646C',
-  },
-  dark: {
-    text: '#ffffff',
-    background: '#000000',
-    backgroundElement: '#212225',
-    backgroundSelected: '#2E3135',
-    textSecondary: '#B0B4BA',
-  },
+export const colors = {
+  primary: '#C0392B',
+  primaryPressed: '#96281B',
+  primarySoft: '#F9EBE9',
+  background: '#FFFFFF',
+  surface: '#FAF7F5',
+  border: '#D9D0CC',
+  text: '#2B2B2B',
+  textSub: '#6E6560',
+  textOnPrimary: '#FFFFFF',
+  danger: '#B03A2E',
+  success: '#2E7D32',
+  disabled: '#CFC7C3',
+  badge: '#2E7D32',
 } as const;
 
-export type ThemeColor = keyof typeof Colors.light & keyof typeof Colors.dark;
-
-export const Fonts = Platform.select({
-  ios: {
-    /** iOS `UIFontDescriptorSystemDesignDefault` */
-    sans: 'system-ui',
-    /** iOS `UIFontDescriptorSystemDesignSerif` */
-    serif: 'ui-serif',
-    /** iOS `UIFontDescriptorSystemDesignRounded` */
-    rounded: 'ui-rounded',
-    /** iOS `UIFontDescriptorSystemDesignMonospaced` */
-    mono: 'ui-monospace',
-  },
-  default: {
-    sans: 'normal',
-    serif: 'serif',
-    rounded: 'normal',
-    mono: 'monospace',
-  },
-  web: {
-    sans: 'var(--font-display)',
-    serif: 'var(--font-serif)',
-    rounded: 'var(--font-rounded)',
-    mono: 'var(--font-mono)',
-  },
-});
-
-export const Spacing = {
-  half: 2,
-  one: 4,
-  two: 8,
-  three: 16,
-  four: 24,
-  five: 32,
-  six: 64,
+export const fontSize = {
+  body: 16,
+  button: 18,
+  label: 16,
+  title: 24,
+  heading: 20,
+  small: 16, // 16pt未満は使わない
 } as const;
 
-export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;
-export const MaxContentWidth = 800;
+export const spacing = {
+  xs: 4,
+  sm: 8,
+  md: 16,
+  lg: 24,
+  xl: 32,
+} as const;
+
+export const sizes = {
+  buttonHeight: 52,
+  inputHeight: 52,
+  tapArea: 44,
+  radius: 10,
+} as const;

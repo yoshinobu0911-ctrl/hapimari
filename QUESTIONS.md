@@ -25,3 +25,10 @@
 ### Q3. matches.call_unlocked の閾値
 - §3.3 の generated column は `message_count >= 10`（5往復=10メッセージで通話解禁）。
 - §4 R5「message_count>=10（5往復）で通話解禁、>=20（10往復）でデート打診」と整合しているため、そのまま実装。
+
+### Q4. Supabaseローカルの既定GRANTが無効だった件（M1で発覚・解決済み）
+- 現行のローカルスタック（npm supabase 2.109）では public テーブルに anon/authenticated/service_role への
+  DML GRANT が自動付与されず、REST が 403 になった。
+- `20260706010000_explicit_grants.sql` で RLS 設計に対応する最小権限を明示付与して解決。
+- ホスト版 Supabase（本番）では既定GRANTが存在するが、明示GRANTは冪等なのでそのまま適用可能。
+  むしろ本番では「既定で全許可」になるため、**本番移行時に不要な既定GRANTのREVOKEを検討**（M6の仕上げで再確認）。

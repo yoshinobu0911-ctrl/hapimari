@@ -53,7 +53,7 @@
 | 共有辞書 | `packages/shared/src/fraud_words.ts` | 詐欺ワード50語 + `findFraudWords()`（正規化込み） |
 | 隣接県 | `packages/shared/src/adjacent_prefectures.ts` | 47都道府県 + `searchArea()`（R10用） |
 | 相性 | `packages/shared/src/compatibility.ts` | `calcCompatibility()`（タグ50%重み）+ 表示閾値85% |
-| 定数 | `packages/shared/src/constants.ts` | `FEMALE_DAILY_LIKE_LIMIT=20` 等のRルール定数 |
+| 定数 | `packages/shared/src/constants.ts` | `FEMALE_DAILY_LIKE_LIMIT` 等のRルール定数（⚠ M3で **20→100** に更新すること。2026-07-06オーナー決定） |
 | UI部品 | `apps/mobile/src/components/ui/` | AppButton / AppTextField / ChoiceGroup / Screen / PrefectureField / ValueTagsSelector |
 | 認証・状態 | `apps/mobile/src/stores/` `hooks/` | useAuthStore / useMyProfile / RealtimeProfileSync |
 | 管理画面 | `apps/admin/` | service_roleクライアント(`lib/supabase-admin.ts`)・レイアウト・審査キュー。reports/users/flagged はプレースホルダ済み |
@@ -246,7 +246,7 @@ alter publication supabase_realtime add table likes;
 | 5 | **R3**: 相手が `gender='female' and has_children=true` かつ sender が `gender='male'` の場合、`sender.understands_children=true` でなければ拒否 | 403 `understands_children_required`（メッセージ: 「お子さまのいるお相手へは、プロフィールで『お子さまのいるお相手を理解し、尊重します』を選択した方のみいいねを送れます」） |
 | 6 | 重複いいね（unique制約でも守られるが事前チェック） | 409 `already_liked` |
 | 7 | likes INSERT（message込み）→ §3.4トリガが相互ならマッチ作成 | - |
-| 8 | **R4**: 相手が女性なら直近24hの被いいね数をカウントし、20件超過なら `carriedOver: true` を返す（**拒否はしない**。表示繰越の解釈は §5.4） | - |
+| 8 | **R4**: 相手が女性なら直近24hの被いいね数をカウントし、100件超過なら `carriedOver: true` を返す（**拒否はしない**。表示繰越の解釈は §5.4） | - |
 | 9 | マッチ成立確認（matchesをSELECT）→ レスポンス | - |
 
 **成功レスポンス**: `{ ok: true, matched: boolean, matchId?: string, carriedOver: boolean }`
@@ -314,11 +314,12 @@ Vitestでテストする（R3の4象限: 子持ち女×宣言なし男=NG / 宣�
 ### 5.4 もらったいいね `(tabs)/likes`（R4繰越表示）
 
 - データ: `likes where to_user = me` + 送り主profile（相性計算にも使用）
-- **R4の解釈（本設計の決定事項）**: いいね自体は全件保存される。**女性側の表示だけ**「1日20件まで、
+- **R4の解釈（2026-07-06 オーナー承認済み）**: いいね自体は全件保存される。**女性側の表示だけ**「1日100件まで、
   超過分は翌日以降に繰り越して表示」とする（拒否しない）。男性の受信いいねは制限なし。
+  上限値はSPECの20件から**100件に変更**（オーナー決定・実質セーフティネット扱い）。
 - 表示判定は純粋関数 `packages/shared/src/like_visibility.ts` に実装しVitestでテスト:
   ```
-  assignVisibleDates(likes(created_at昇順), limit=20):
+  assignVisibleDates(likes(created_at昇順), limit=100):
     day = JSTのcalendar date
     各likeに display_date = max(created_atのJST日付, 直前のlikeのdisplay_date) を仮置きし、
     その日の割当が limit を超えたら翌日に繰り越す。
@@ -423,7 +424,7 @@ docker exec supabase_db_hapimari psql -U postgres -d postgres -c "select has_tab
 | 対象 | ケース |
 |---|---|
 | `like_rules.ts` | R3の4象限 / 自分いいね / ブロック済み / 同性 |
-| `like_visibility.ts` | 20件以内は当日全表示 / 21件目が翌日へ / 複数日跨ぎの累積繰越 / 男性は無制限 |
+| `like_visibility.ts` | 100件以内は当日全表示 / 101件目が翌日へ / 複数日跨ぎの累積繰越 / 男性は無制限 |
 | `discover-query`のフィルタ変換 | 年齢→birth_dateレンジ両端 / R10既定エリア / 時間帯overlaps |
 | fraud_words | 既存テストがそのまま辞書同期の監視になる（50語） |
 
@@ -440,7 +441,7 @@ docker exec supabase_db_hapimari psql -U postgres -d postgres -c "select has_tab
 | 1. マッチ→Realtimeチャット | ブラウザA=seed03(ひろし)、B=seed15(みほ)でログイン。Aが詳細からいいね→Bのlikesタブに出る→Bがいいね返し→両者にマッチ表示→チャットで交互に送信 | 相手の画面に**リロードなしで**メッセージが出る |
 | 2. R3ゲート | seed05(しんじ・宣言なし)でログイン→子持ち女性(seed13等)の詳細→いいね | エラーメッセージ表示・likesに行が増えない |
 | 3. R8バナー | 上記マッチのチャットで「いい投資の話があります」と送信 | **受信側**にのみ警告バナー。DBで flagged=true |
-| 追加: R4 | 女性1名に21件のいいねをREST/Functionで連投（男性が12名しかいないため、テスト用male追加はEdge Function経由で21回は不可→**手動seedで男性ユーザーを一時増員するか、limitを一時的に3に下げた状態のロジックテストで代替**。単体テストで20件境界は担保済みのため、E2Eは「単体+視覚確認」でよい） | 繰越表示の文言確認 |
+| 追加: R4 | 上限100件のためE2Eでの実数連投は非現実的。**limitを一時的に3に下げた状態のロジックテスト（または単体テスト）で代替**。単体テストで100件境界は担保済みのため、E2Eは「単体+視覚確認」でよい | 繰越表示の文言確認 |
 | 追加: R10 | フィルタ未設定のdiscoverが「自県+隣接県」のみ | seed分布（東京/埼玉/千葉）で確認 |
 | 追加: ブロック | AがBをブロック→両者のdiscover/likesから相互に消える | 表示されない |
 
@@ -474,9 +475,10 @@ docker exec supabase_db_hapimari psql -U postgres -d postgres -c "select has_tab
 
 ## 10. 未決事項・リスク（実装者への注意）
 
-1. **R4の解釈**（§5.4）: 「上限=拒否」ではなく「表示繰越」とした。プロダクトオーナー（中村さん）の
-   確認が取れていない解釈のため、実装後の報告に明記すること。
-2. **blocksテーブルはSPEC §3に無い追加**。同様に報告に明記。
+1. **R4の解釈**（§5.4）: **解決済み（2026-07-06 オーナー承認）**。上限は**100件/日**（SPECの20から変更）・
+   方式は「拒否せず表示繰越」で確定。`FEMALE_DAILY_LIKE_LIMIT` を 20→100 に更新すること
+   （`docs/decisions/2026-07-06_M3設計判断.md` 参照）。
+2. **blocksテーブルはSPEC §3に無い追加**: **承認済み（2026-07-06 オーナー承認）**。
 3. **Edge Functionのローカル実行**は npm版CLI 2.109 で未検証。`functions serve` が動かない場合は
    QUESTIONS.mdに記録し、代替として同等検証をPostgres関数（RPC）で実装する判断をしてよい
    （その場合も検証ロジックは like_rules.ts と同一仕様にする）。

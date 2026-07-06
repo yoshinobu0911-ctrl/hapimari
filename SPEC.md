@@ -166,7 +166,7 @@ create table daily_stats (
 | R1 | 登録可能年齢: 女性35歳以上・男性45歳以上（上限なし） | サインアップバリデーション + DB check |
 | R2 | is_verified=false のユーザーはメッセージ送信不可 | RLS + UI |
 | R3 | has_children=true の女性には understands_children=true の男性のみ「いいね」可能 | likes insert時のEdge Function検証 |
-| R4 | 同一女性が24時間に受け取る「いいね」上限20件。超過分は翌日繰越表示（F-40簡易版） | Edge Function |
+| R4 | 同一女性が24時間に受け取る「いいね」上限100件。超過分は翌日繰越表示（F-40簡易版）※2026-07-06 オーナー決定で20→100に変更 | Edge Function |
 | R5 | message_count>=10（5往復）で通話解禁、>=20（10往復）でデート打診バナー表示 | matches.message_count |
 | R6 | デート打診は両者 intent=true になるまで相手に一切通知しない | date_proposals |
 | R7 | デートプラン提案の時間帯は weekday_lunch / weekend_am を上位固定 | 提案ロジック |

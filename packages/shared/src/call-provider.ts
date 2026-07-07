@@ -21,15 +21,27 @@ export interface CallHandle {
   hangup: () => void;
 }
 
+export interface CallListenHandlers {
+  /** 着信（invite受信）時 */
+  onIncoming: () => void;
+  /** 発信側の取り下げ・タイムアウト時（着信表示を消す） */
+  onCancelled: () => void;
+}
+
+export interface CallListener {
+  /** 監視を解除する（画面のブラー・アンマウント時） */
+  stop: () => void;
+  /** 着信を拒否する（発信側には declined が伝わる） */
+  decline: () => void;
+}
+
 export interface CallProvider {
   /** 発信する。相手が CALL_NO_ANSWER_TIMEOUT_SECONDS 以内に応答しなければ no_answer で終了 */
   startCall(matchId: string, selfId: string, events: CallProviderEvents): Promise<CallHandle>;
-  /** 着信の監視を開始する（チャット画面の表示中のみ）。戻り値は解除関数 */
-  listen(matchId: string, selfId: string, onIncoming: () => void): () => void;
+  /** 着信の監視を開始する（チャット画面の表示中のみ） */
+  listen(matchId: string, selfId: string, handlers: CallListenHandlers): CallListener;
   /** 着信に応答して通話に参加する */
   joinCall(matchId: string, selfId: string, events: CallProviderEvents): Promise<CallHandle>;
-  /** 着信を拒否する */
-  declineCall(matchId: string, selfId: string): Promise<void>;
 }
 
 /** 発信の応答待ちタイムアウト（秒） */

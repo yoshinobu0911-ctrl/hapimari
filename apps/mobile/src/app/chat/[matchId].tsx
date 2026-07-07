@@ -1,7 +1,11 @@
-import { DATE_PROPOSAL_MESSAGE_COUNT, MESSAGE_BODY_MAX_LENGTH } from '@hapimari/shared';
+import {
+  type CallListener,
+  DATE_PROPOSAL_MESSAGE_COUNT,
+  MESSAGE_BODY_MAX_LENGTH,
+} from '@hapimari/shared';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -17,6 +21,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppButton } from '@/components/ui/app-button';
 import { colors, fontSize, sizes, spacing } from '@/constants/theme';
 import { useMyProfile } from '@/hooks/use-my-profile';
+import { mockCallProvider } from '@/lib/call-provider-mock';
+import { confirmDialog } from '@/lib/confirm';
 import { getDateStatus } from '@/lib/date-api';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/auth';
@@ -55,7 +61,9 @@ export default function Chat() {
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
+  const [incomingCall, setIncomingCall] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
+  const callListenerRef = useRef<CallListener | null>(null);
 
   const matchQuery = useQuery({
     queryKey: ['match', matchId],
@@ -133,6 +141,23 @@ export default function Chat() {
     };
   }, [matchId, myId, queryClient]);
 
+  // M5: 着信の監視（この画面が表示されている間のみ・通話解禁済みマッチのみ）
+  useFocusEffect(
+    useCallback(() => {
+      if (!matchId || !myId || !match?.call_unlocked) return;
+      const listener = mockCallProvider.listen(matchId, myId, {
+        onIncoming: () => setIncomingCall(true),
+        onCancelled: () => setIncomingCall(false),
+      });
+      callListenerRef.current = listener;
+      return () => {
+        listener.stop();
+        callListenerRef.current = null;
+        setIncomingCall(false);
+      };
+    }, [matchId, myId, match?.call_unlocked]),
+  );
+
   const messages = messagesQuery.data ?? [];
 
   // 新着時に最下部へスクロール
@@ -194,6 +219,23 @@ export default function Chat() {
             {partner ? partner.nickname : '表示できないユーザー'}
           </Text>
         </Pressable>
+        {match?.call_unlocked && partner ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="音声通話"
+            testID="chat-call"
+            onPress={() =>
+              confirmDialog(
+                '通話を始める前に',
+                '電話番号・LINEなどの連絡先交換は、十分に信頼できるまでお控えください。金銭・投資の話が出たら通話をやめて、運営への通報をご検討ください。\n（最長15分で自動終了します。モック通話のため音声は流れません）',
+                () => router.push(`/call/${matchId}?role=caller`),
+              )
+            }
+            style={styles.headerButton}
+          >
+            <Text style={styles.headerButtonText}>📞</Text>
+          </Pressable>
+        ) : null}
         {partner ? (
           <Pressable
             accessibilityRole="button"
@@ -213,6 +255,38 @@ export default function Chat() {
           <View style={styles.headerButton} />
         )}
       </View>
+
+      {incomingCall && partner ? (
+        <View style={styles.incomingBanner} testID="incoming-call">
+          <Text style={styles.incomingText}>📞 {partner.nickname}さんから音声通話の着信です</Text>
+          <View style={styles.incomingActions}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="応答"
+              testID="incoming-accept"
+              onPress={() => {
+                setIncomingCall(false);
+                router.push(`/call/${matchId}?role=callee`);
+              }}
+              style={styles.acceptButton}
+            >
+              <Text style={styles.acceptText}>応答</Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="今は出られない"
+              testID="incoming-decline"
+              onPress={() => {
+                callListenerRef.current?.decline();
+                setIncomingCall(false);
+              }}
+              style={styles.declineButton}
+            >
+              <Text style={styles.declineText}>今は出られない</Text>
+            </Pressable>
+          </View>
+        </View>
+      ) : null}
 
       {showDateFeature && match ? (
         <Pressable
@@ -401,6 +475,48 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontWeight: '700',
     lineHeight: 24,
+  },
+  incomingBanner: {
+    backgroundColor: '#EAF5EA',
+    borderBottomWidth: 1,
+    borderBottomColor: colors.success,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    gap: spacing.sm,
+  },
+  incomingText: {
+    fontSize: fontSize.body,
+    color: colors.text,
+    fontWeight: '700',
+  },
+  incomingActions: {
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+  acceptButton: {
+    minHeight: sizes.tapArea,
+    justifyContent: 'center',
+    borderRadius: sizes.radius,
+    backgroundColor: colors.success,
+    paddingHorizontal: spacing.lg,
+  },
+  acceptText: {
+    fontSize: fontSize.button,
+    color: colors.textOnPrimary,
+    fontWeight: '700',
+  },
+  declineButton: {
+    minHeight: sizes.tapArea,
+    justifyContent: 'center',
+    borderRadius: sizes.radius,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: spacing.lg,
+  },
+  declineText: {
+    fontSize: fontSize.button,
+    color: colors.textSub,
+    fontWeight: '600',
   },
   emptyText: {
     fontSize: fontSize.body,

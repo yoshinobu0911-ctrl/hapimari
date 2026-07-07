@@ -1,4 +1,5 @@
 export * from './adjacent_prefectures';
+export * from './call-provider';
 export * from './compatibility';
 export * from './constants';
 export * from './date_slots';

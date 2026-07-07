@@ -331,6 +331,9 @@ export type Database = {
           id: string
           income_verified: boolean
           is_verified: boolean
+          loc_lat: number | null
+          loc_lng: number | null
+          loc_updated_at: string | null
           marital_history: string
           marriage_intent: string | null
           money_view: string | null
@@ -340,6 +343,7 @@ export type Database = {
           prefecture: string
           single_cert_verified: boolean
           status: string
+          subscription_active: boolean
           understands_children: boolean
           understands_remarriage: boolean
           value_tags: string[]
@@ -358,6 +362,9 @@ export type Database = {
           id: string
           income_verified?: boolean
           is_verified?: boolean
+          loc_lat?: number | null
+          loc_lng?: number | null
+          loc_updated_at?: string | null
           marital_history: string
           marriage_intent?: string | null
           money_view?: string | null
@@ -367,6 +374,7 @@ export type Database = {
           prefecture: string
           single_cert_verified?: boolean
           status?: string
+          subscription_active?: boolean
           understands_children?: boolean
           understands_remarriage?: boolean
           value_tags?: string[]
@@ -385,6 +393,9 @@ export type Database = {
           id?: string
           income_verified?: boolean
           is_verified?: boolean
+          loc_lat?: number | null
+          loc_lng?: number | null
+          loc_updated_at?: string | null
           marital_history?: string
           marriage_intent?: string | null
           money_view?: string | null
@@ -394,6 +405,7 @@ export type Database = {
           prefecture?: string
           single_cert_verified?: boolean
           status?: string
+          subscription_active?: boolean
           understands_children?: boolean
           understands_remarriage?: boolean
           value_tags?: string[]
@@ -512,14 +524,27 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      _distance_km: {
+        Args: { lat1: number; lat2: number; lng1: number; lng2: number }
+        Returns: number
+      }
       cancel_date: { Args: { p_match_id: string }; Returns: Json }
+      compute_daily_stats: { Args: { p_date: string }; Returns: undefined }
       get_date_status: { Args: { p_match_id: string }; Returns: Json }
+      get_profile_distances: {
+        Args: { p_user_ids: string[] }
+        Returns: {
+          distance_km: number
+          user_id: string
+        }[]
+      }
       is_blocked_between: { Args: { a: string; b: string }; Returns: boolean }
       is_match_participant: { Args: { target_match: string }; Returns: boolean }
       propose_date_slot: {
         Args: { p_area: string; p_match_id: string; p_slot: Json }
         Returns: Json
       }
+      purchase_subscription: { Args: { p_plan: string }; Returns: Json }
       respond_date_slot: {
         Args: { p_accept: boolean; p_match_id: string }
         Returns: Json
@@ -536,6 +561,7 @@ export type Database = {
         Args: { p_feedback: string; p_match_id: string }
         Returns: Json
       }
+      withdraw_account: { Args: never; Returns: Json }
     }
     Enums: {
       [_ in never]: never

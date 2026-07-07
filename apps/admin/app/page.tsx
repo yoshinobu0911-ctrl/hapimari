@@ -60,7 +60,7 @@ export default async function Dashboard() {
         ))}
       </div>
       <p className="mt-6 text-sm text-gray-500">
-        日次集計（daily_stats）を使った推移グラフと透明性レポートは M6 で実装予定です。
+        日次集計は毎日0:05（JST）に自動実行されます。月次の公開用JSONは「透明性レポート」から生成できます。
       </p>
     </div>
   );

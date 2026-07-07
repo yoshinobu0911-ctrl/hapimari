@@ -165,14 +165,14 @@ create table daily_stats (
 |---|---|---|
 | R1 | 登録可能年齢: 女性35歳以上・男性45歳以上（上限なし） | サインアップバリデーション + DB check |
 | R2 | is_verified=false のユーザーはメッセージ送信不可 | RLS + UI |
-| R3 | has_children=true の女性には understands_children=true の男性のみ「いいね」可能 | likes insert時のEdge Function検証 |
+| R3 | 子持ち女性は understands_children=true の男性にのみ**表示**される（子ども情報はプロフィールに表示しない・いいね時エラーは廃止。相手が先にいいねした場合のいいね返しはゲート対象外）※2026-07-07 オーナー承認・案A | 検索クエリの除外条件 + Edge Function（防御層として維持） |
 | R4 | 同一女性が24時間に受け取る「いいね」上限100件。超過分は翌日繰越表示（F-40簡易版）※2026-07-06 オーナー決定で20→100に変更 | Edge Function |
 | R5 | message_count>=10（5往復）で通話解禁、>=20（10往復）でデート打診バナー表示 | matches.message_count |
 | R6 | デート打診は両者 intent=true になるまで相手に一切通知しない | date_proposals |
 | R7 | デートプラン提案の時間帯は weekday_lunch / weekend_am を上位固定 | 提案ロジック |
 | R8 | メッセージ本文に金銭・投資・外部誘導ワード（辞書は `packages/shared/fraud_words.ts`、初期50語をエージェントが作成）を検知したら flagged=true + 受信者に注意バナー | DBトリガ or Edge Function |
 | R9 | 男性は subscription_active=false の場合、メッセージ閲覧のみ・送信不可（MVPはモック課金） | UI + RLS |
-| R10 | 検索デフォルトは「居住県＋隣接県」。隣接県マップは静的定義 | 検索クエリ |
+| R10 | 検索デフォルトは「現在地から30km以内」（上限は10〜100km/無制限に変更可・位置未許可ペアは同一県を常に表示）。「県で選ぶ」「全国」も選択可 ※2026-07-07 オーナー決定で県+隣接県から変更 | 検索クエリ + 距離RPC |
 
 ## 5. 画面一覧（expo-router のルート）
 
@@ -187,6 +187,7 @@ modal/filter            -- 検索条件（年齢/エリア/結婚歴/子ども/�
 modal/date-proposal     -- 「会ってみますか？」→日程候補→確定
 modal/date-feedback     -- デート翌日の相互フィードバック
 modal/report-block
+subscription           -- 有料プラン（モック課金・M6）
 ```
 
 管理画面（apps/admin, Supabase service_role）:
@@ -223,8 +224,9 @@ subscription_active フラグのモック課金画面（RevenueCat統合ポイ�
 **受け入れ条件**: 未課金男性がメッセージ送信不可。adminで当月の透明性レポートJSONが出力される。
 
 ## 7. Seedデータ要件
-- 男性12名・女性8名。女性のうち5名は35〜45歳バツイチ子持ち設定（シードユーザー層の再現）
-- 全員 is_verified=true、写真はプレースホルダ画像
+- 男性12名（45〜65歳）・女性8名（35〜52歳・40歳前後を厚く）※2026-07-06 ポジショニング再確認（中高年45-65の男女向け・バツイチ子持ち特化ではない）に基づく
+- 全員 is_verified=true、写真はプレースホルダ画像。男性は subscription_active=true（デモ用）
+- 全員に丸め済みのおおよそ座標（首都圏・距離マッチングのデモ用）
 - マッチ済みペア2組（うち1組はmessage_count=22でデート打診可能状態）
 
 ## 8. モック方針（外部依存で止まらないための指示）

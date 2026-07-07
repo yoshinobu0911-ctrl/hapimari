@@ -13,7 +13,7 @@ const NAV_ITEMS = [
   { href: '/reports', label: '通報対応' },
   { href: '/users', label: 'ユーザー検索・凍結' },
   { href: '/flagged', label: 'flaggedメッセージ' },
-  { href: '/transparency', label: '透明性レポート（M6）' },
+  { href: '/transparency', label: '透明性レポート' },
 ];
 
 export default function RootLayout({

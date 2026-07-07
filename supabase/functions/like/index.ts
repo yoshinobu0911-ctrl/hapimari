@@ -116,6 +116,14 @@ Deno.serve(async (req) => {
     .eq('id', toUser)
     .maybeSingle();
 
+  // 相手が先に自分へいいねしている場合、R3ゲートは適用しない（いいね返し・M6案A）
+  const { data: reverseLike } = await admin
+    .from('likes')
+    .select('id')
+    .eq('from_user', toUser)
+    .eq('to_user', user.id)
+    .maybeSingle();
+
   const { data: blocked, error: blockedError } = await admin.rpc('is_blocked_between', {
     a: user.id,
     b: toUser,
@@ -132,6 +140,7 @@ Deno.serve(async (req) => {
     toRuleUser(senderRow as ProfileRow),
     targetRow ? toRuleUser(targetRow as ProfileRow) : null,
     blocked === true,
+    !!reverseLike,
   );
   if (!verdict.ok) {
     return json(verdict.status, { ok: false, error: verdict.error, message: verdict.message });

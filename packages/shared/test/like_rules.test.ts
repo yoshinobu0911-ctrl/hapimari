@@ -36,6 +36,13 @@ describe('validateLike: R3の4象限', () => {
     expect(validateLike(maleNoDecl, femaleNoChildren, false).ok).toBe(true);
   });
 
+  it('いいね返しはR3を適用しない（子持ち女性が先にいいねした宣言なし男性からの返し・M6案A）', () => {
+    const blocked = validateLike(maleNoDecl, femaleWithChildren, false, false);
+    expect(blocked.ok).toBe(false);
+    const likeBack = validateLike(maleNoDecl, femaleWithChildren, false, true);
+    expect(likeBack.ok).toBe(true);
+  });
+
   it('女性→男性は宣言に関係なく OK（子持ち女性が送る側でも制限しない）', () => {
     const femaleSender = user({ id: 'f3', gender: 'female', hasChildren: true });
     const maleTarget = user({ id: 'm3', gender: 'male', hasChildren: true });

@@ -495,11 +495,46 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      _date_get_match: {
+        Args: { p_match_id: string }
+        Returns: {
+          call_unlocked: boolean | null
+          created_at: string | null
+          id: string
+          message_count: number
+          user_a: string
+          user_b: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "matches"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      cancel_date: { Args: { p_match_id: string }; Returns: Json }
+      get_date_status: { Args: { p_match_id: string }; Returns: Json }
       is_blocked_between: { Args: { a: string; b: string }; Returns: boolean }
       is_match_participant: { Args: { target_match: string }; Returns: boolean }
+      propose_date_slot: {
+        Args: { p_area: string; p_match_id: string; p_slot: Json }
+        Returns: Json
+      }
+      respond_date_slot: {
+        Args: { p_accept: boolean; p_match_id: string }
+        Returns: Json
+      }
       review_verification: {
         Args: { approve: boolean; reason?: string; verification_id: string }
         Returns: undefined
+      }
+      set_date_intent: {
+        Args: { p_intent: boolean; p_match_id: string }
+        Returns: Json
+      }
+      submit_date_feedback: {
+        Args: { p_feedback: string; p_match_id: string }
+        Returns: Json
       }
     }
     Enums: {

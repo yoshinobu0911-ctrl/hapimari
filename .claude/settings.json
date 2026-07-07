@@ -1,0 +1,38 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(pnpm exec biome check:*)",
+      "PowerShell(pnpm exec tsc --noEmit:*)",
+      "PowerShell(pnpm --filter @hapimari/shared test:*)",
+      "PowerShell(pnpm test:*)",
+      "PowerShell(pnpm lint:*)",
+      "PowerShell(pnpm exec supabase gen types:*)",
+      "PowerShell(git status:*)",
+      "PowerShell(git log:*)",
+      "PowerShell(git diff:*)",
+      "PowerShell(git show:*)",
+      "PowerShell(git branch:*)",
+      "PowerShell(git tag:*)",
+      "PowerShell(git remote:*)",
+      "PowerShell(git ls-files:*)",
+      "PowerShell(git rev-parse:*)",
+      "PowerShell(docker ps:*)",
+      "PowerShell(docker images:*)",
+      "PowerShell(docker logs:*)",
+      "PowerShell(docker inspect:*)",
+      "PowerShell(docker info:*)",
+      "PowerShell(Get-ChildItem:*)",
+      "PowerShell(Get-Content:*)",
+      "PowerShell(Get-Item:*)",
+      "PowerShell(Select-String:*)",
+      "PowerShell(Test-Path:*)",
+      "PowerShell(Get-NetTCPConnection:*)",
+      "PowerShell(Get-Process:*)",
+      "PowerShell(Select-Object:*)",
+      "PowerShell(Measure-Object:*)",
+      "PowerShell(Sort-Object:*)",
+      "PowerShell(Format-Table:*)",
+      "PowerShell(Out-String:*)"
+    ]
+  }
+}

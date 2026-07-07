@@ -1,91 +1,103 @@
 /**
- * フィルタ検索の条件変換（SPEC §5 / docs/design/M3_design.md §5.3）
+ * フィルタ検索の条件変換（SPEC §5 / M3設計書 §5.3 / M6設計書 B1・B6 改訂）
  *
- * 検索フィルタの状態を PostgREST に依存しない「条件の宣言」に変換する純粋関数。
- * apps/mobile/src/lib/discover-query.ts がこの結果を supabase クエリに薄く適用する。
- * （PostgREST 適用部を薄く保ち、変換ロジックをここで Vitest テストするための分離）
+ * M6での変更（2026-07-07 オーナー承認）:
+ * - 既定エリアは「現在地から30km以内」（距離モード）。R10の県+隣接県は「県で選ぶ」に統合
+ * - 「お子さまの有無」フィルタを撤去し、R3は表示段階の除外に変更
+ *   （理解宣言のない男性の検索結果に子持ち女性を出さない=案A）
+ * - 並び替え（相性順/距離順）をフィルタ状態に追加
+ *
+ * 距離の絞り込みはDBでは行えない（座標はカラム単位で遮断済み）ため、
+ * 取得後に get_profile_distances RPC の結果へ applyDistanceFilter を適用する。
  */
 
-import { type Prefecture, searchArea } from './adjacent_prefectures';
+import type { Prefecture } from './adjacent_prefectures';
 import type { AvailableTime, MaritalHistory, MarriageIntent } from './constants';
 
-/** エリア条件（R10: 既定は「あなたの県+隣接県」） */
+/** エリア条件。distance = 現在地からの距離（既定・R10の後継） */
 export type AreaFilter =
-  | { mode: 'default' } // 自県+隣接県
+  | { mode: 'distance'; limitKm: number | null } // null = 制限なし
   | { mode: 'all' } // 全国
   | { mode: 'custom'; prefectures: Prefecture[] };
 
-/** フィルタモーダルの状態（SPEC §5 の6項目・すべてAND） */
+/** 距離上限の選択肢（判断#10） */
+export const DISTANCE_LIMIT_OPTIONS = [10, 20, 30, 50, 100, null] as const;
+
+/** 既定の距離上限（マッチング限界距離・オーナー決定） */
+export const DEFAULT_DISTANCE_LIMIT_KM = 30;
+
+export type DiscoverSort = 'compatibility' | 'distance';
+
+/** フィルタモーダルの状態（すべてAND） */
 export interface DiscoverFilter {
   ageMin: number | null;
   ageMax: number | null;
   area: AreaFilter;
   /** 空 or 全選択 = 絞り込みなし */
   maritalHistories: MaritalHistory[];
-  children: 'any' | 'has' | 'none';
   /** 空 = 絞り込みなし */
   marriageIntents: MarriageIntent[];
   /** 空 = 絞り込みなし。1つでも重なればヒット（overlaps） */
   availableTimes: AvailableTime[];
+  /** 並び替え。距離順は位置情報の許可が必要 */
+  sort: DiscoverSort;
 }
 
-/** 既定値 = R10 状態（エリアのみ自県+隣接県、他は絞り込みなし） */
+/** 既定値 = 距離30km・相性順 */
 export const DEFAULT_DISCOVER_FILTER: DiscoverFilter = {
   ageMin: null,
   ageMax: null,
-  area: { mode: 'default' },
+  area: { mode: 'distance', limitKm: DEFAULT_DISTANCE_LIMIT_KM },
   maritalHistories: [],
-  children: 'any',
   marriageIntents: [],
   availableTimes: [],
+  sort: 'compatibility',
 };
 
 /** PostgREST 適用用の条件宣言（null = その条件を適用しない） */
 export interface DiscoverConditions {
-  /** 異性のみ */
   gender: 'male' | 'female';
-  /** n歳以上: birth_date <= この日付（yyyy-mm-dd） */
   birthDateOnOrBefore: string | null;
-  /** m歳以下: birth_date > この日付（yyyy-mm-dd） */
   birthDateAfter: string | null;
-  /** in 条件。null = 全国 */
+  /** in 条件。null = 県で絞らない（距離モード・全国） */
   prefectures: string[] | null;
   maritalHistories: string[] | null;
+  /**
+   * R3の表示除外（案A）: 理解宣言のない男性には子持ち女性を出さない。
+   * false = has_children=false のみ表示 / null = 条件なし
+   */
   hasChildren: boolean | null;
   marriageIntents: string[] | null;
-  /** overlaps 条件 */
   availableTimesOverlaps: string[] | null;
+  /** 距離モード時の上限（取得後に applyDistanceFilter で適用）。null = 距離絞り込みなし */
+  distanceLimitKm: number | null;
 }
 
-/** now から years 年前の日付を yyyy-mm-dd で返す（ローカル日付基準） */
 function isoDateYearsAgo(now: Date, years: number): string {
   const d = new Date(Date.UTC(now.getFullYear() - years, now.getMonth(), now.getDate()));
   return d.toISOString().slice(0, 10);
 }
 
-/**
- * フィルタ状態を検索条件に変換する。
- *
- * 年齢→birth_date の変換（calcAge の逆算・両端に注意）:
- *   n歳以上 = birth_date <= today - n years（今日が誕生日の人はちょうど n 歳）
- *   m歳以下 = age < m+1 = birth_date > today - (m+1) years
- */
+export interface DiscoverMe {
+  gender: 'male' | 'female';
+  prefecture: string;
+  /** R3表示除外の判定に使用（男性のみ意味を持つ） */
+  understandsChildren: boolean;
+}
+
+/** フィルタ状態を検索条件に変換する（年齢→birth_date の変換規則はM3から不変） */
 export function buildDiscoverConditions(
   filter: DiscoverFilter,
-  me: { gender: 'male' | 'female'; prefecture: string },
+  me: DiscoverMe,
   now: Date = new Date(),
 ): DiscoverConditions {
   let prefectures: string[] | null = null;
-  if (filter.area.mode === 'default') {
-    prefectures = searchArea(me.prefecture as Prefecture);
-  } else if (filter.area.mode === 'custom') {
-    // 0件選択は「全国」と同じ扱い（UI側でも0件確定は防ぐ）
+  if (filter.area.mode === 'custom') {
     prefectures = filter.area.prefectures.length > 0 ? [...filter.area.prefectures] : null;
   }
 
-  const allMarital = 3;
   const maritalHistories =
-    filter.maritalHistories.length === 0 || filter.maritalHistories.length >= allMarital
+    filter.maritalHistories.length === 0 || filter.maritalHistories.length >= 3
       ? null
       : [...filter.maritalHistories];
 
@@ -95,19 +107,52 @@ export function buildDiscoverConditions(
     birthDateAfter: filter.ageMax != null ? isoDateYearsAgo(now, filter.ageMax + 1) : null,
     prefectures,
     maritalHistories,
-    hasChildren: filter.children === 'any' ? null : filter.children === 'has',
+    // R3（案A）: 理解宣言のない男性には子持ち女性をそもそも表示しない
+    hasChildren: me.gender === 'male' && !me.understandsChildren ? false : null,
     marriageIntents: filter.marriageIntents.length > 0 ? [...filter.marriageIntents] : null,
     availableTimesOverlaps: filter.availableTimes.length > 0 ? [...filter.availableTimes] : null,
+    distanceLimitKm: filter.area.mode === 'distance' ? filter.area.limitKm : null,
   };
 }
 
-/** 適用中のフィルタ数（フィルタボタンのバッジ「絞り込み中(n)」用） */
+/**
+ * 距離フィルタの適用（取得後・クライアント側）。
+ * - 距離が分かるペア: distance <= limit のみ残す
+ * - 距離不明のペア（どちらかが位置未許可）: 「同一県なら常に表示」の救済則（オーナー承認 判断#10）
+ */
+export function applyDistanceFilter<T extends { id: string; prefecture: string }>(
+  profiles: readonly T[],
+  distances: ReadonlyMap<string, number>,
+  limitKm: number | null,
+  myPrefecture: string,
+): T[] {
+  return profiles.filter((p) => {
+    const d = distances.get(p.id);
+    if (d == null) return p.prefecture === myPrefecture;
+    if (limitKm == null) return true;
+    return d <= limitKm;
+  });
+}
+
+/**
+ * 距離の表示ラベル（プライバシー配慮の丸め・M6 B6）。
+ * 5km未満は「5km以内」、〜30kmは5km刻み、〜100kmは10km刻み、それ以上は「100km以上」
+ */
+export function formatDistanceLabel(distanceKm: number): string {
+  if (distanceKm < 5) return '5km以内';
+  if (distanceKm <= 30) return `約${Math.max(5, Math.round(distanceKm / 5) * 5)}km`;
+  if (distanceKm <= 100) return `約${Math.round(distanceKm / 10) * 10}km`;
+  return '100km以上';
+}
+
+/** 適用中のフィルタ数（「絞り込み中(n)」バッジ用。既定＝0） */
 export function countActiveFilters(filter: DiscoverFilter): number {
   let count = 0;
   if (filter.ageMin != null || filter.ageMax != null) count += 1;
-  if (filter.area.mode !== 'default') count += 1;
+  const areaIsDefault =
+    filter.area.mode === 'distance' && filter.area.limitKm === DEFAULT_DISTANCE_LIMIT_KM;
+  if (!areaIsDefault) count += 1;
   if (filter.maritalHistories.length > 0 && filter.maritalHistories.length < 3) count += 1;
-  if (filter.children !== 'any') count += 1;
   if (filter.marriageIntents.length > 0) count += 1;
   if (filter.availableTimes.length > 0) count += 1;
   return count;

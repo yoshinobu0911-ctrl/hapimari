@@ -1,118 +1,128 @@
 import { describe, expect, it } from 'vitest';
-import { searchArea } from '../src/adjacent_prefectures';
 import {
+  applyDistanceFilter,
   buildDiscoverConditions,
   countActiveFilters,
   DEFAULT_DISCOVER_FILTER,
   type DiscoverFilter,
+  type DiscoverMe,
+  formatDistanceLabel,
 } from '../src/discover_filters';
 
 const NOW = new Date('2026-07-06T12:00:00+09:00');
-const me = { gender: 'male' as const, prefecture: '東京都' };
+const me: DiscoverMe = { gender: 'male', prefecture: '東京都', understandsChildren: true };
 
 function filter(overrides: Partial<DiscoverFilter> = {}): DiscoverFilter {
   return { ...DEFAULT_DISCOVER_FILTER, ...overrides };
 }
 
-describe('buildDiscoverConditions', () => {
-  it('既定フィルタ = 異性・R10エリア（自県+隣接県）のみ', () => {
+describe('buildDiscoverConditions（M6: 距離モードが既定）', () => {
+  it('既定フィルタ = 異性・距離30km・県条件なし', () => {
     const c = buildDiscoverConditions(filter(), me, NOW);
     expect(c.gender).toBe('female');
-    expect(c.prefectures).toEqual(searchArea('東京都'));
-    expect(c.prefectures).toContain('東京都');
-    expect(c.prefectures).toContain('埼玉県');
+    expect(c.prefectures).toBeNull();
+    expect(c.distanceLimitKm).toBe(30);
     expect(c.birthDateOnOrBefore).toBeNull();
-    expect(c.birthDateAfter).toBeNull();
     expect(c.maritalHistories).toBeNull();
-    expect(c.hasChildren).toBeNull();
     expect(c.marriageIntents).toBeNull();
     expect(c.availableTimesOverlaps).toBeNull();
   });
 
-  it('女性から見ると対象は男性', () => {
-    const c = buildDiscoverConditions(filter(), { gender: 'female', prefecture: '千葉県' }, NOW);
-    expect(c.gender).toBe('male');
+  it('R3表示除外（案A）: 理解宣言のない男性には子持ち女性を出さない', () => {
+    const noDecl: DiscoverMe = { ...me, understandsChildren: false };
+    expect(buildDiscoverConditions(filter(), noDecl, NOW).hasChildren).toBe(false);
+    expect(buildDiscoverConditions(filter(), me, NOW).hasChildren).toBeNull();
+    // 女性側は宣言に関係なく除外なし
+    const female: DiscoverMe = { gender: 'female', prefecture: '千葉県', understandsChildren: false };
+    expect(buildDiscoverConditions(filter(), female, NOW).hasChildren).toBeNull();
   });
 
   it('年齢→birth_dateレンジの両端（45歳以上55歳以下）', () => {
     const c = buildDiscoverConditions(filter({ ageMin: 45, ageMax: 55 }), me, NOW);
-    // 45歳以上 = 1981-07-06以前生まれ（今日45歳の誕生日を迎えた人を含む）
     expect(c.birthDateOnOrBefore).toBe('1981-07-06');
-    // 55歳以下 = age < 56 = 1970-07-06 より後に生まれた
     expect(c.birthDateAfter).toBe('1970-07-06');
   });
 
-  it('エリア「全国」は都道府県条件なし', () => {
-    const c = buildDiscoverConditions(filter({ area: { mode: 'all' } }), me, NOW);
-    expect(c.prefectures).toBeNull();
-  });
+  it('エリア「全国」「県を選ぶ」では距離絞り込みなし', () => {
+    const all = buildDiscoverConditions(filter({ area: { mode: 'all' } }), me, NOW);
+    expect(all.prefectures).toBeNull();
+    expect(all.distanceLimitKm).toBeNull();
 
-  it('エリア「県を選ぶ」は選択県のみ・0件選択は全国扱い', () => {
     const custom = buildDiscoverConditions(
-      filter({ area: { mode: 'custom', prefectures: ['北海道', '沖縄県'] } }),
+      filter({ area: { mode: 'custom', prefectures: ['北海道'] } }),
       me,
       NOW,
     );
-    expect(custom.prefectures).toEqual(['北海道', '沖縄県']);
-
-    const empty = buildDiscoverConditions(
-      filter({ area: { mode: 'custom', prefectures: [] } }),
-      me,
-      NOW,
-    );
-    expect(empty.prefectures).toBeNull();
+    expect(custom.prefectures).toEqual(['北海道']);
+    expect(custom.distanceLimitKm).toBeNull();
   });
 
-  it('結婚歴: 全選択・未選択は条件なし、一部選択のみ条件になる', () => {
+  it('距離モードの上限は変更可能・「制限なし」はnull', () => {
     expect(
-      buildDiscoverConditions(filter({ maritalHistories: [] }), me, NOW).maritalHistories,
+      buildDiscoverConditions(filter({ area: { mode: 'distance', limitKm: 100 } }), me, NOW)
+        .distanceLimitKm,
+    ).toBe(100);
+    expect(
+      buildDiscoverConditions(filter({ area: { mode: 'distance', limitKm: null } }), me, NOW)
+        .distanceLimitKm,
     ).toBeNull();
-    expect(
-      buildDiscoverConditions(
-        filter({ maritalHistories: ['unmarried', 'divorced', 'widowed'] }),
-        me,
-        NOW,
-      ).maritalHistories,
-    ).toBeNull();
-    expect(
-      buildDiscoverConditions(filter({ maritalHistories: ['divorced'] }), me, NOW).maritalHistories,
-    ).toEqual(['divorced']);
-  });
-
-  it('子どもの有無: any=条件なし / has=true / none=false', () => {
-    expect(buildDiscoverConditions(filter({ children: 'any' }), me, NOW).hasChildren).toBeNull();
-    expect(buildDiscoverConditions(filter({ children: 'has' }), me, NOW).hasChildren).toBe(true);
-    expect(buildDiscoverConditions(filter({ children: 'none' }), me, NOW).hasChildren).toBe(false);
-  });
-
-  it('会える時間帯は overlaps 条件（1つでも重なればヒット）として返す', () => {
-    const c = buildDiscoverConditions(
-      filter({ availableTimes: ['weekday_lunch', 'weekend_am'] }),
-      me,
-      NOW,
-    );
-    expect(c.availableTimesOverlaps).toEqual(['weekday_lunch', 'weekend_am']);
   });
 });
 
-describe('countActiveFilters（絞り込み中(n)バッジ）', () => {
-  it('既定は0', () => {
+describe('applyDistanceFilter（判断#10: 30km上限+同一県救済）', () => {
+  const profiles = [
+    { id: 'a', prefecture: '東京都' }, // 5km
+    { id: 'b', prefecture: '千葉県' }, // 28km
+    { id: 'c', prefecture: '埼玉県' }, // 45km → 30km上限で除外
+    { id: 'd', prefecture: '東京都' }, // 距離不明・同県 → 救済で表示
+    { id: 'e', prefecture: '千葉県' }, // 距離不明・他県 → 非表示
+  ];
+  const distances = new Map([
+    ['a', 5],
+    ['b', 28],
+    ['c', 45],
+  ]);
+
+  it('30km上限: 圏内+同県救済のみ残る', () => {
+    const kept = applyDistanceFilter(profiles, distances, 30, '東京都').map((p) => p.id);
+    expect(kept).toEqual(['a', 'b', 'd']);
+  });
+
+  it('上限なし(null): 距離持ちは全表示・不明は同県のみ', () => {
+    const kept = applyDistanceFilter(profiles, distances, null, '東京都').map((p) => p.id);
+    expect(kept).toEqual(['a', 'b', 'c', 'd']);
+  });
+
+  it('自分が位置未許可（距離が全員不明）: 同一県のみ表示', () => {
+    const kept = applyDistanceFilter(profiles, new Map(), 30, '東京都').map((p) => p.id);
+    expect(kept).toEqual(['a', 'd']);
+  });
+});
+
+describe('formatDistanceLabel（プライバシー配慮の丸め）', () => {
+  it('5km未満は「5km以内」・30kmまで5km刻み・100kmまで10km刻み・以遠は100km以上', () => {
+    expect(formatDistanceLabel(0)).toBe('5km以内');
+    expect(formatDistanceLabel(4)).toBe('5km以内');
+    expect(formatDistanceLabel(6)).toBe('約5km');
+    expect(formatDistanceLabel(13)).toBe('約15km');
+    expect(formatDistanceLabel(28)).toBe('約30km');
+    expect(formatDistanceLabel(47)).toBe('約50km');
+    expect(formatDistanceLabel(101)).toBe('100km以上');
+  });
+});
+
+describe('countActiveFilters', () => {
+  it('既定（距離30km・相性順）は0', () => {
     expect(countActiveFilters(DEFAULT_DISCOVER_FILTER)).toBe(0);
   });
 
-  it('年齢・エリア・時間帯を設定すると3', () => {
-    const f = filter({
-      ageMin: 45,
-      area: { mode: 'all' },
-      availableTimes: ['weekend_am'],
-    });
-    expect(countActiveFilters(f)).toBe(3);
+  it('距離上限の変更・全国・年齢はカウントされる', () => {
+    expect(countActiveFilters(filter({ area: { mode: 'distance', limitKm: 10 } }))).toBe(1);
+    expect(countActiveFilters(filter({ area: { mode: 'all' } }))).toBe(1);
+    expect(countActiveFilters(filter({ ageMin: 45, area: { mode: 'all' } }))).toBe(2);
   });
 
-  it('結婚歴の全選択はカウントしない', () => {
-    expect(
-      countActiveFilters(filter({ maritalHistories: ['unmarried', 'divorced', 'widowed'] })),
-    ).toBe(0);
-    expect(countActiveFilters(filter({ maritalHistories: ['widowed'] }))).toBe(1);
+  it('並び替えの変更はフィルタ数に数えない', () => {
+    expect(countActiveFilters(filter({ sort: 'distance' }))).toBe(0);
   });
 });

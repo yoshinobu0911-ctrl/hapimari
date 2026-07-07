@@ -16,12 +16,31 @@ export interface CompatibilityInput {
   understandsRemarriage: boolean;
 }
 
+/**
+ * M6改訂: 距離15%を導入（2026-07-07 オーナー承認 判断#8）。
+ * 距離不明（位置未許可等）の場合は距離を除いた重みで再正規化し、
+ * 他の価値観を優先して評価する（オーナー指示）。
+ */
 const WEIGHTS = {
-  tags: 0.5,
-  times: 0.2,
-  intent: 0.2,
+  tags: 0.45,
+  distance: 0.15,
+  times: 0.15,
+  intent: 0.15,
   understanding: 0.1,
 } as const;
+
+/**
+ * 距離→係数（M6設計書 B6 ランク表）。
+ * 30kmが既定の表示上限のため、通常は0.5以上のレンジで効く。
+ */
+export function distanceScore(distanceKm: number): number {
+  if (distanceKm <= 5) return 1.0;
+  if (distanceKm <= 10) return 0.9;
+  if (distanceKm <= 20) return 0.7;
+  if (distanceKm <= 30) return 0.5;
+  if (distanceKm <= 50) return 0.3;
+  return 0.15;
+}
 
 /** 表示レンジ。0%や100%は出さない（婚活アプリの慣行に合わせ前向きな帯に収める） */
 const DISPLAY_MIN = 40;
@@ -69,18 +88,68 @@ function understandingOneWay(x: CompatibilityInput, y: CompatibilityInput): numb
 /**
  * 相性スコアを 40〜98 の整数で返す。
  * 情報が少ない相手でも中立値で計算されるため、必ず表示可能な値が返る。
+ *
+ * @param distanceKm 現在地からの距離（km）。不明（位置未許可・相手座標なし）は null/未指定。
+ *                   不明時は距離を除いた重みで再正規化する（減点しない）。
  */
-export function calcCompatibility(me: CompatibilityInput, other: CompatibilityInput): number {
+export function calcCompatibility(
+  me: CompatibilityInput,
+  other: CompatibilityInput,
+  distanceKm?: number | null,
+): number {
   const tagRatio = overlapRatio(me.valueTags, other.valueTags) ?? 0.5;
   const timeRatio = overlapRatio(me.availableTimes, other.availableTimes) ?? 0.5;
   const intent = intentScore(me.marriageIntent, other.marriageIntent);
   const understanding = (understandingOneWay(me, other) + understandingOneWay(other, me)) / 2;
 
-  const raw =
+  const base =
     tagRatio * WEIGHTS.tags +
     timeRatio * WEIGHTS.times +
     intent * WEIGHTS.intent +
     understanding * WEIGHTS.understanding;
 
-  return Math.round(DISPLAY_MIN + (DISPLAY_MAX - DISPLAY_MIN) * raw);
+  const raw =
+    distanceKm != null
+      ? base + distanceScore(distanceKm) * WEIGHTS.distance
+      : base / (1 - WEIGHTS.distance); // 距離不明: 他の価値観のみで再正規化
+
+  return Math.round(DISPLAY_MIN + (DISPLAY_MAX - DISPLAY_MIN) * Math.min(1, raw));
+}
+
+/**
+ * 相性の「理由」を日本語で返す（M6 B4・with風の共通点演出。診断テストは使わない）。
+ * 相性%が表示閾値未満でも共通点があれば表示する。最大4件。
+ */
+export function compatibilityReasons(
+  me: CompatibilityInput,
+  other: CompatibilityInput,
+  tagLabels: Record<string, string>,
+  timeLabels: Record<string, string> = {},
+): string[] {
+  const reasons: string[] = [];
+
+  // 種類の多様性を優先する並び: タグ(最大2) → 時間帯 → 結婚観 → 残りのタグ数
+  const otherTags = new Set(other.valueTags);
+  const shared = me.valueTags.filter((t) => otherTags.has(t));
+  for (const tag of shared.slice(0, 2)) {
+    const label = tagLabels[tag];
+    if (label) reasons.push(`お二人とも「${label}」派`);
+  }
+
+  const otherTimes = new Set(other.availableTimes);
+  const sharedTimes = me.availableTimes.filter((t) => otherTimes.has(t));
+  if (sharedTimes.length > 0) {
+    const label = timeLabels[sharedTimes[0]] ?? sharedTimes[0];
+    reasons.push(`会える時間帯が合います（${label}）`);
+  }
+
+  if (me.marriageIntent && me.marriageIntent === other.marriageIntent) {
+    reasons.push('結婚への考えが同じです');
+  }
+
+  if (shared.length > 2) {
+    reasons.push(`ほかにも${shared.length - 2}つの価値観が共通`);
+  }
+
+  return reasons.slice(0, 4);
 }

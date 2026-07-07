@@ -27,14 +27,24 @@ export default function MyPage() {
     });
   };
 
+  // M6 A5: 退会（ソフトデリート・2段階確認）
   const withdraw = () => {
     confirmDialog(
       '退会について',
-      '退会するとプロフィールが非表示になり、マッチやメッセージが見られなくなります。本当に退会をご検討ですか？',
+      '退会するとプロフィールが非表示になり、お相手からあなたが見えなくなります。退会手続きに進みますか？',
       () =>
-        infoDialog(
-          '退会手続き',
-          '退会手続きは現在準備中です。お急ぎの場合は運営までご連絡ください。',
+        confirmDialog(
+          '最終確認',
+          '本当に退会しますか？この操作のあと、自動的にログアウトします。',
+          async () => {
+            const { error } = await supabase.rpc('withdraw_account');
+            if (error) {
+              infoDialog('エラー', '退会処理に失敗しました。時間をおいてお試しください。');
+              return;
+            }
+            infoDialog('退会しました', 'ご利用ありがとうございました。');
+            supabase.auth.signOut();
+          },
         ),
     );
   };
@@ -103,6 +113,12 @@ export default function MyPage() {
           label="プロフィールを編集する"
           onPress={() => router.push('/profile-edit')}
           testID="mypage-edit"
+        />
+        <AppButton
+          label="有料プランについて"
+          variant="secondary"
+          onPress={() => router.push('/subscription')}
+          testID="mypage-subscription"
         />
         <AppButton
           label="ブロックしたユーザー"

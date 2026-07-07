@@ -3,6 +3,7 @@ import {
   AVAILABLE_TIMES,
   type AvailableTime,
   DEFAULT_DISCOVER_FILTER,
+  DEFAULT_DISTANCE_LIMIT_KM,
   type DiscoverFilter,
   MARITAL_HISTORIES,
   MARRIAGE_INTENTS,
@@ -18,8 +19,8 @@ import { AppButton } from '@/components/ui/app-button';
 import { ChoiceGroup, MultiChoiceGroup } from '@/components/ui/choice-group';
 import { Screen } from '@/components/ui/screen';
 import { colors, fontSize, sizes, spacing } from '@/constants/theme';
-import { useMyProfile } from '@/hooks/use-my-profile';
 import { useFilterStore } from '@/stores/filter';
+import { useLocationStore } from '@/stores/location';
 
 /** 年齢下限の選択肢（5歳刻み・指定なしあり） */
 const AGE_MIN_OPTIONS = [
@@ -33,13 +34,17 @@ const AGE_MAX_OPTIONS = [
   ...[39, 44, 49, 54, 59, 64, 69, 74].map((n) => ({ value: String(n), label: `${n}歳以下` })),
 ];
 
-const CHILDREN_OPTIONS = [
-  { value: 'any', label: '気にしない' },
-  { value: 'has', label: 'お子さまがいる方' },
-  { value: 'none', label: 'お子さまがいない方' },
-] as const;
+/** 距離上限の選択肢（判断#10: 既定30km・変更可） */
+const DISTANCE_OPTIONS = [
+  { value: '10', label: '10km以内' },
+  { value: '20', label: '20km以内' },
+  { value: '30', label: `30km以内（おすすめ）` },
+  { value: '50', label: '50km以内' },
+  { value: '100', label: '100km以内' },
+  { value: 'none', label: '距離の制限なし' },
+];
 
-/** 都道府県の複数選択（チップを折り返して並べる。47行の縦リストにしない） */
+/** 都道府県の複数選択（チップを折り返して並べる） */
 function PrefectureChips({
   selected,
   onToggle,
@@ -69,26 +74,22 @@ function PrefectureChips({
 }
 
 /**
- * フィルタ検索モーダル（docs/design/M3_design.md §5.3・SPEC §5の6条件・すべてAND）
- * エリアの既定は R10「あなたの県+隣接県」。
+ * フィルタ検索モーダル（M6改訂: 距離モードが既定・子持ちフィルタは撤去=案A）
  */
 export default function FilterModal() {
   const router = useRouter();
-  const { data: myProfile } = useMyProfile();
   const applied = useFilterStore((s) => s.filter);
   const setFilter = useFilterStore((s) => s.setFilter);
+  const gpsAvailable = useLocationStore((s) => s.gpsAvailable);
 
   const [draft, setDraft] = useState<DiscoverFilter>(applied);
 
   const update = (patch: Partial<DiscoverFilter>) => setDraft((d) => ({ ...d, ...patch }));
 
   const areaOptions = [
-    {
-      value: 'default',
-      label: myProfile ? `あなたの県+隣接県（${myProfile.prefecture}周辺）` : 'あなたの県+隣接県',
-    },
-    { value: 'all', label: '全国' },
+    { value: 'distance', label: '現在地からの距離で絞る（おすすめ）' },
     { value: 'custom', label: '県を選ぶ（複数可）' },
+    { value: 'all', label: '全国' },
   ] as const;
 
   const togglePrefecture = (p: Prefecture) => {
@@ -102,7 +103,7 @@ export default function FilterModal() {
     router.back();
   };
 
-  const reset = () => setDraft(DEFAULT_DISCOVER_FILTER);
+  const reset = () => setDraft({ ...DEFAULT_DISCOVER_FILTER, sort: draft.sort });
 
   return (
     <Screen title="絞り込み" subtitle="条件はすべて「かつ」で絞り込まれます。">
@@ -120,7 +121,7 @@ export default function FilterModal() {
       />
 
       <ChoiceGroup
-        label="お住まいのエリア"
+        label="お相手をさがす範囲"
         options={areaOptions}
         value={draft.area.mode}
         onChange={(mode) => {
@@ -130,10 +131,30 @@ export default function FilterModal() {
                   mode: 'custom',
                   prefectures: draft.area.mode === 'custom' ? draft.area.prefectures : [],
                 }
-              : { mode };
+              : mode === 'distance'
+                ? { mode: 'distance', limitKm: DEFAULT_DISTANCE_LIMIT_KM }
+                : { mode };
           update({ area });
         }}
       />
+      {draft.area.mode === 'distance' ? (
+        <>
+          <ChoiceGroup
+            label="距離の上限"
+            options={DISTANCE_OPTIONS}
+            value={draft.area.limitKm != null ? String(draft.area.limitKm) : 'none'}
+            onChange={(v) =>
+              update({ area: { mode: 'distance', limitKm: v === 'none' ? null : Number(v) } })
+            }
+          />
+          {gpsAvailable === false ? (
+            <Text style={styles.gpsNote}>
+              位置情報が未許可のため、距離のかわりに「同じ県のお相手」を表示しています。
+              距離で絞るには位置情報を許可してください。
+            </Text>
+          ) : null}
+        </>
+      ) : null}
       {draft.area.mode === 'custom' ? (
         <PrefectureChips selected={draft.area.prefectures} onToggle={togglePrefecture} />
       ) : null}
@@ -143,13 +164,6 @@ export default function FilterModal() {
         options={MARITAL_HISTORIES}
         values={draft.maritalHistories}
         onChange={(values) => update({ maritalHistories: values as MaritalHistory[] })}
-      />
-
-      <ChoiceGroup
-        label="お子さまの有無"
-        options={CHILDREN_OPTIONS}
-        value={draft.children}
-        onChange={(children) => update({ children })}
       />
 
       <MultiChoiceGroup
@@ -213,6 +227,12 @@ const styles = StyleSheet.create({
   chipTextOn: {
     color: colors.primary,
     fontWeight: '700',
+  },
+  gpsNote: {
+    fontSize: fontSize.small,
+    color: colors.textSub,
+    lineHeight: 24,
+    marginBottom: spacing.md,
   },
   actions: {
     gap: spacing.md,

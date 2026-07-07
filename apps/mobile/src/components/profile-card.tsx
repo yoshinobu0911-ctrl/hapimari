@@ -8,6 +8,8 @@ interface Props {
   profile: Profile;
   /** 相性スコア（40〜98）。discover側で calcCompatibility により算出 */
   compatibility: number;
+  /** 現在地からの距離（丸め済みラベル）。位置未許可・距離不明時は undefined（M6 判断#9） */
+  distanceLabel?: string;
   onPress?: () => void;
 }
 
@@ -17,7 +19,7 @@ interface Props {
  * 相性%は85%以上のときだけ表示する（特別感を出すプロダクト仕様）。
  * 結婚歴・子どもの有無などの事情はプロフィール詳細（M3）で伝える。
  */
-export function ProfileCard({ profile, compatibility, onPress }: Props) {
+export function ProfileCard({ profile, compatibility, distanceLabel, onPress }: Props) {
   const photo = profile.photo_urls?.[0];
   const showCompatibility = shouldShowCompatibility(compatibility);
   return (
@@ -44,6 +46,7 @@ export function ProfileCard({ profile, compatibility, onPress }: Props) {
           <Text style={styles.age}> {calcAge(profile.birth_date)}歳</Text>
         </Text>
         {showCompatibility ? <Text style={styles.compatibility}>相性 {compatibility}%</Text> : null}
+        {distanceLabel ? <Text style={styles.distance}>📍 {distanceLabel}</Text> : null}
       </View>
     </Pressable>
   );
@@ -91,5 +94,9 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '800',
     color: colors.primary,
+  },
+  distance: {
+    fontSize: 16,
+    color: colors.textSub,
   },
 });

@@ -31,7 +31,8 @@ export const SUBSCRIPTION_PLANS: readonly SubscriptionPlan[] = [
     priceLabel: '価格は正式リリース時に決定します',
     targetGender: 'male',
     available: true,
-    description: 'メッセージの送信ができるようになります。お相手探し・いいね・受信は無料のままです。',
+    description:
+      'メッセージの送信ができるようになります。お相手探し・いいね・受信は無料のままです。',
   },
   {
     // 将来枠（B5）: まじめに活動する女性の相互スクリーニング用。RevenueCat本実装時に有効化

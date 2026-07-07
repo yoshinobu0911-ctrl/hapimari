@@ -40,7 +40,7 @@ export default function Step2() {
   return (
     <Screen
       title="結婚歴・お子さま（2/4）"
-      subtitle="正直にお答えいただくことが、良いご縁につながります。"
+      subtitle="正直にお答えいただくことが、良いご縁につながります。お子さまに関する情報はお相手選びの参考のためだけに使用し、プロフィールには表示されません。"
     >
       <ChoiceGroup
         label="結婚歴"

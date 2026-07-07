@@ -3,6 +3,8 @@ import {
   type CompatibilityInput,
   calcAge,
   calcCompatibility,
+  compatibilityReasons,
+  formatDistanceLabel,
   LIKE_MESSAGE_MAX_LENGTH,
   MARITAL_HISTORIES,
   MARRIAGE_INTENTS,
@@ -20,6 +22,7 @@ import { AppTextField } from '@/components/ui/app-text-field';
 import { colors, fontSize, sizes, spacing } from '@/constants/theme';
 import { useMyProfile } from '@/hooks/use-my-profile';
 import { confirmDialog } from '@/lib/confirm';
+import { fetchDistances } from '@/lib/discover-query';
 import { sendLike } from '@/lib/like-api';
 import { type Profile, supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/auth';
@@ -96,6 +99,17 @@ export default function ProfileDetail() {
       return data;
     },
   });
+
+  // 現在地からの距離（丸め済みkm。位置未許可なら null・M6 B6）
+  const distanceQuery = useQuery({
+    queryKey: ['distance', myId, id],
+    enabled: !!id && !!session,
+    queryFn: async () => {
+      const map = await fetchDistances([id ?? '']);
+      return map.get(id ?? '') ?? null;
+    },
+  });
+  const distanceKm = distanceQuery.data ?? null;
 
   // マッチ正規化規約: user_a = 小さいUUID, user_b = 大きいUUID
   const [pairA, pairB] = [myId, id ?? ''].sort();
@@ -202,7 +216,18 @@ export default function ProfileDetail() {
   }
 
   const compatibility =
-    myProfile && profile ? calcCompatibility(toCompatInput(myProfile), toCompatInput(profile)) : 0;
+    myProfile && profile
+      ? calcCompatibility(toCompatInput(myProfile), toCompatInput(profile), distanceKm)
+      : 0;
+  const reasons =
+    myProfile && profile
+      ? compatibilityReasons(
+          toCompatInput(myProfile),
+          toCompatInput(profile),
+          VALUE_TAG_LABELS,
+          TIME_LABEL,
+        )
+      : [];
   const myTags = new Set(myProfile?.value_tags ?? []);
   const alreadyLiked = !!sentLikeQuery.data;
   const match = matchQuery.data;
@@ -235,6 +260,20 @@ export default function ProfileDetail() {
           {shouldShowCompatibility(compatibility) ? (
             <Text style={styles.compatibility}>相性 {compatibility}%</Text>
           ) : null}
+          {distanceKm != null ? (
+            <Text style={styles.distance} testID="profile-distance">
+              📍 現在地から {formatDistanceLabel(distanceKm)}
+            </Text>
+          ) : null}
+          {reasons.length > 0 ? (
+            <View style={styles.reasons} testID="profile-reasons">
+              {reasons.map((reason) => (
+                <Text key={reason} style={styles.reasonText}>
+                  ・{reason}
+                </Text>
+              ))}
+            </View>
+          ) : null}
 
           {(profile.value_tags ?? []).length > 0 ? (
             <View style={styles.tags}>
@@ -258,27 +297,7 @@ export default function ProfileDetail() {
               value={`${profile.prefecture}${profile.city ? ` ${profile.city}` : ''}`}
             />
             <InfoRow label="結婚歴" value={MARITAL_LABEL[profile.marital_history]} />
-            <InfoRow label="お子さま" value={profile.has_children ? 'いる' : 'いない'} />
-            {profile.has_children ? (
-              <>
-                <InfoRow
-                  label="お子さまとの同居"
-                  value={
-                    profile.children_living_together == null
-                      ? null
-                      : profile.children_living_together
-                        ? '同居'
-                        : '別居'
-                  }
-                />
-                <InfoRow
-                  label="お子さま連れのデート"
-                  value={
-                    profile.ok_child_date == null ? null : profile.ok_child_date ? 'OK' : '要相談'
-                  }
-                />
-              </>
-            ) : null}
+            {/* M6 B1（案A）: お子さま関連はプロフィールに表示しない（オーナー決定 2026-07-07） */}
             <InfoRow
               label="結婚への考え"
               value={profile.marriage_intent ? INTENT_LABEL[profile.marriage_intent] : null}
@@ -422,6 +441,20 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: colors.primary,
     marginTop: spacing.xs,
+  },
+  distance: {
+    fontSize: fontSize.body,
+    color: colors.textSub,
+    marginTop: spacing.xs,
+  },
+  reasons: {
+    marginTop: spacing.sm,
+    gap: 2,
+  },
+  reasonText: {
+    fontSize: fontSize.body,
+    color: colors.text,
+    lineHeight: 24,
   },
   tags: {
     flexDirection: 'row',

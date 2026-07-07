@@ -33,7 +33,11 @@ describe('buildDiscoverConditions（M6: 距離モードが既定）', () => {
     expect(buildDiscoverConditions(filter(), noDecl, NOW).hasChildren).toBe(false);
     expect(buildDiscoverConditions(filter(), me, NOW).hasChildren).toBeNull();
     // 女性側は宣言に関係なく除外なし
-    const female: DiscoverMe = { gender: 'female', prefecture: '千葉県', understandsChildren: false };
+    const female: DiscoverMe = {
+      gender: 'female',
+      prefecture: '千葉県',
+      understandsChildren: false,
+    };
     expect(buildDiscoverConditions(filter(), female, NOW).hasChildren).toBeNull();
   });
 

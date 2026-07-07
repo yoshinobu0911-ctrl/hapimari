@@ -191,6 +191,8 @@ export default function Chat() {
 
   const partner = partnerQuery.data;
   const isVerified = myProfile?.is_verified === true;
+  // R9: 男性は課金しないと送信不可（閲覧は可・M6）
+  const needsSubscription = myProfile?.gender === 'male' && myProfile?.subscription_active !== true;
 
   return (
     <KeyboardAvoidingView
@@ -390,7 +392,18 @@ export default function Chat() {
             {sendError}
           </Text>
         ) : null}
-        {isVerified ? (
+        {isVerified && needsSubscription ? (
+          <View style={styles.verifyPrompt} testID="chat-paywall">
+            <Text style={styles.verifyPromptText}>
+              メッセージの送信には有料プランへの登録が必要です。お相手からのメッセージはこのまま読めます。
+            </Text>
+            <AppButton
+              label="プランを見る"
+              onPress={() => router.push('/subscription')}
+              testID="chat-to-plan"
+            />
+          </View>
+        ) : isVerified ? (
           <View style={styles.composerRow}>
             <TextInput
               style={styles.input}

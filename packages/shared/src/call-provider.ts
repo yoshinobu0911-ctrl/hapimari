@@ -29,8 +29,12 @@ export interface CallListenHandlers {
 }
 
 export interface CallListener {
-  /** 監視を解除する（画面のブラー・アンマウント時） */
-  stop: () => void;
+  /**
+   * 監視を解除する（画面のブラー・アンマウント時）。
+   * 通話画面へ遷移する前は必ず await すること
+   * （同一チャネル名の leave/join が競合し、通話が接続できなくなるため）
+   */
+  stop: () => Promise<void>;
   /** 着信を拒否する（発信側には declined が伝わる） */
   decline: () => void;
 }

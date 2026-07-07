@@ -81,7 +81,7 @@ function createSession(
         end('hangup', false);
       })
       .subscribe((status) => {
-        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
           end('error', false);
           return;
         }
@@ -128,8 +128,9 @@ export const mockCallProvider: CallProvider = {
       .subscribe();
 
     return {
-      stop: () => {
-        supabase.removeChannel(channel);
+      stop: async () => {
+        // leave完了まで待つ（直後に同名チャネルへjoinする通話画面との競合防止）
+        await supabase.removeChannel(channel);
       },
       decline: () => {
         send(channel, 'decline', selfId);

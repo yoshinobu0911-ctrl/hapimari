@@ -228,7 +228,14 @@ export default function Chat() {
               confirmDialog(
                 '通話を始める前に',
                 '電話番号・LINEなどの連絡先交換は、十分に信頼できるまでお控えください。金銭・投資の話が出たら通話をやめて、運営への通報をご検討ください。\n（最長15分で自動終了します。モック通話のため音声は流れません）',
-                () => router.push(`/call/${matchId}?role=caller`),
+                async () => {
+                  // 着信リスナーを確実に閉じてから通話チャネルへ参加する（同名チャネル競合防止）
+                  await callListenerRef.current?.stop();
+                  router.push({
+                    pathname: '/call/[matchId]',
+                    params: { matchId: matchId ?? '', role: 'caller' },
+                  });
+                },
               )
             }
             style={styles.headerButton}
@@ -264,9 +271,14 @@ export default function Chat() {
               accessibilityRole="button"
               accessibilityLabel="応答"
               testID="incoming-accept"
-              onPress={() => {
+              onPress={async () => {
                 setIncomingCall(false);
-                router.push(`/call/${matchId}?role=callee`);
+                // 着信リスナーを確実に閉じてから通話チャネルへ参加する（同名チャネル競合防止）
+                await callListenerRef.current?.stop();
+                router.push({
+                  pathname: '/call/[matchId]',
+                  params: { matchId: matchId ?? '', role: 'callee' },
+                });
               }}
               style={styles.acceptButton}
             >

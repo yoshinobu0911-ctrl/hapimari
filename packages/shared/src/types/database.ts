@@ -317,6 +317,35 @@ export type Database = {
           },
         ]
       }
+      profile_locations: {
+        Row: {
+          loc_lat: number
+          loc_lng: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          loc_lat: number
+          loc_lng: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          loc_lat?: number
+          loc_lng?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profile_locations_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           available_times: string[] | null
@@ -331,9 +360,6 @@ export type Database = {
           id: string
           income_verified: boolean
           is_verified: boolean
-          loc_lat: number | null
-          loc_lng: number | null
-          loc_updated_at: string | null
           marital_history: string
           marriage_intent: string | null
           money_view: string | null
@@ -362,9 +388,6 @@ export type Database = {
           id: string
           income_verified?: boolean
           is_verified?: boolean
-          loc_lat?: number | null
-          loc_lng?: number | null
-          loc_updated_at?: string | null
           marital_history: string
           marriage_intent?: string | null
           money_view?: string | null
@@ -393,9 +416,6 @@ export type Database = {
           id?: string
           income_verified?: boolean
           is_verified?: boolean
-          loc_lat?: number | null
-          loc_lng?: number | null
-          loc_updated_at?: string | null
           marital_history?: string
           marriage_intent?: string | null
           money_view?: string | null
@@ -556,6 +576,10 @@ export type Database = {
       set_date_intent: {
         Args: { p_intent: boolean; p_match_id: string }
         Returns: Json
+      }
+      set_my_location: {
+        Args: { p_lat: number; p_lng: number }
+        Returns: undefined
       }
       submit_date_feedback: {
         Args: { p_feedback: string; p_match_id: string }

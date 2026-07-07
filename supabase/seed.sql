@@ -234,7 +234,8 @@ update profiles set value_tags = '{hobby_together,hobby_onsen,comm_meet,family_s
 -- ============================================================
 update profiles set subscription_active = true where gender = 'male';
 
-update profiles set loc_lat = v.lat, loc_lng = v.lng
+insert into profile_locations (user_id, loc_lat, loc_lng)
+select v.id, v.lat, v.lng
 from (values
   ('00000000-0000-0000-0000-000000000001'::uuid, 35.68, 139.77), -- たかし: 千代田
   ('00000000-0000-0000-0000-000000000002'::uuid, 35.69, 139.70), -- けんじ: 新宿
@@ -257,4 +258,4 @@ from (values
   ('00000000-0000-0000-0000-000000000019'::uuid, 35.61, 140.11), -- ゆみこ: 千葉
   ('00000000-0000-0000-0000-000000000020'::uuid, 35.80, 139.71)  -- りえ: 川口
 ) as v(id, lat, lng)
-where profiles.id = v.id;
+on conflict (user_id) do update set loc_lat = excluded.loc_lat, loc_lng = excluded.loc_lng;

@@ -16,15 +16,25 @@ function round2(v: number): number {
   return Math.round(v * 100) / 100;
 }
 
-/** 現在地を取得して丸める。未許可・失敗は null（アプリは全機能そのまま使える） */
+/** timeoutMs 以内に解決しなければ null（許可ダイアログ放置等で画面を止めない） */
+function withTimeout<T>(p: Promise<T>, timeoutMs: number): Promise<T | null> {
+  return Promise.race([
+    p,
+    new Promise<null>((resolve) => setTimeout(() => resolve(null), timeoutMs)),
+  ]);
+}
+
+/** 現在地を取得して丸める。未許可・失敗・8秒超過は null（アプリは全機能そのまま使える） */
 export async function fetchRoundedLocation(): Promise<RoundedLocation | null> {
   try {
     const Location = await import('expo-location');
-    const { status } = await Location.requestForegroundPermissionsAsync();
-    if (status !== 'granted') return null;
-    const pos = await Location.getCurrentPositionAsync({
-      accuracy: Location.Accuracy.Balanced,
-    });
+    const perm = await withTimeout(Location.requestForegroundPermissionsAsync(), 8000);
+    if (perm?.status !== 'granted') return null;
+    const pos = await withTimeout(
+      Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
+      8000,
+    );
+    if (!pos) return null;
     return {
       lat: round2(pos.coords.latitude),
       lng: round2(pos.coords.longitude),
@@ -34,13 +44,10 @@ export async function fetchRoundedLocation(): Promise<RoundedLocation | null> {
   }
 }
 
-/** 現在地を自分のプロフィールに保存する。成功=true（距離機能が有効になる） */
-export async function syncMyLocation(myId: string): Promise<boolean> {
+/** 現在地を保存する（profile_locations へRPC経由・成功=true で距離機能が有効になる） */
+export async function syncMyLocation(_myId: string): Promise<boolean> {
   const loc = await fetchRoundedLocation();
   if (!loc) return false;
-  const { error } = await supabase
-    .from('profiles')
-    .update({ loc_lat: loc.lat, loc_lng: loc.lng })
-    .eq('id', myId);
+  const { error } = await supabase.rpc('set_my_location', { p_lat: loc.lat, p_lng: loc.lng });
   return !error;
 }

@@ -55,9 +55,11 @@ export default function Discover() {
     syncMyLocation(myId).then(setGpsAvailable);
   }, [session?.user.id, setGpsAvailable]);
 
+  // GPS取得を待たずに一覧を表示する（距離はDB保存座標から計算されるため、
+  // 同期が終わったら gpsAvailable の変化で自動的に再取得される）
   const query = useQuery({
     queryKey: ['discover', session?.user.id, filter, gpsAvailable],
-    enabled: !!session && !!myProfile && gpsAvailable !== null,
+    enabled: !!session && !!myProfile,
     queryFn: async () => {
       if (!myProfile) return { profiles: [], distances: new Map<string, number>() };
       return fetchDiscoverProfiles(filter, {
@@ -71,6 +73,13 @@ export default function Discover() {
 
   const me = myProfile ? toCompatInput(myProfile) : null;
   const distances = query.data?.distances ?? new Map<string, number>();
+  // 距離ソートの可否は「距離が実際に取れているか」で判定する
+  // （過去にスマホで許可済みならDBに座標があり、今セッションのGPS結果に依らず使える）
+  const distanceAvailable = distances.size > 0;
+
+  useEffect(() => {
+    if (distanceAvailable && gpsAvailable !== true) setGpsAvailable(true);
+  }, [distanceAvailable, gpsAvailable, setGpsAvailable]);
   const candidates = (query.data?.profiles ?? [])
     .map((p) => {
       const distanceKm = distances.get(p.id) ?? null;
@@ -126,32 +135,32 @@ export default function Discover() {
           accessibilityRole="button"
           accessibilityLabel="距離が近い順"
           testID="sort-distance"
-          disabled={gpsAvailable !== true}
+          disabled={!distanceAvailable}
           onPress={() => setSort('distance')}
           style={[
             styles.sortChip,
             filter.sort === 'distance' && styles.sortChipOn,
-            gpsAvailable !== true && styles.sortChipDisabled,
+            !distanceAvailable && styles.sortChipDisabled,
           ]}
         >
           <Text
             style={[
               styles.sortChipText,
               filter.sort === 'distance' && styles.sortChipTextOn,
-              gpsAvailable !== true && styles.sortChipTextDisabled,
+              !distanceAvailable && styles.sortChipTextDisabled,
             ]}
           >
             距離が近い順
           </Text>
         </Pressable>
-        {gpsAvailable === false ? (
+        {!query.isPending && !distanceAvailable ? (
           <Text style={styles.gpsHint} testID="gps-hint">
             位置情報を許可すると距離順に並べ替えできます
           </Text>
         ) : null}
       </View>
 
-      {query.isPending || gpsAvailable === null ? (
+      {query.isPending ? (
         <View style={styles.center}>
           <ActivityIndicator size="large" color={colors.primary} />
         </View>

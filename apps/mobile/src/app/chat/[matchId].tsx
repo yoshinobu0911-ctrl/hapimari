@@ -1,4 +1,4 @@
-import { MESSAGE_BODY_MAX_LENGTH } from '@hapimari/shared';
+import { DATE_PROPOSAL_MESSAGE_COUNT, MESSAGE_BODY_MAX_LENGTH } from '@hapimari/shared';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppButton } from '@/components/ui/app-button';
 import { colors, fontSize, sizes, spacing } from '@/constants/theme';
 import { useMyProfile } from '@/hooks/use-my-profile';
+import { getDateStatus } from '@/lib/date-api';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/auth';
 
@@ -73,6 +74,15 @@ export default function Chat() {
   const match = matchQuery.data;
   const partnerId = match ? (match.user_a === myId ? match.user_b : match.user_a) : null;
 
+  // R5: 20通以上でデート機能が解放される
+  const showDateFeature = (match?.message_count ?? 0) >= DATE_PROPOSAL_MESSAGE_COUNT;
+  const dateStatusQuery = useQuery({
+    queryKey: ['date-status', matchId],
+    enabled: !!matchId && !!session && showDateFeature,
+    queryFn: () => getDateStatus(matchId ?? ''),
+  });
+  const dateStatus = dateStatusQuery.data;
+
   const partnerQuery = useQuery({
     queryKey: ['profile', partnerId],
     enabled: !!partnerId,
@@ -112,6 +122,9 @@ export default function Chat() {
         () => {
           queryClient.invalidateQueries({ queryKey: ['messages', matchId] });
           queryClient.invalidateQueries({ queryKey: ['matches', myId] });
+          // デート成立/確定の自動メッセージ到着に合わせて状態も更新（M4）
+          queryClient.invalidateQueries({ queryKey: ['date-status', matchId] });
+          queryClient.invalidateQueries({ queryKey: ['match', matchId] });
         },
       )
       .subscribe();
@@ -200,6 +213,26 @@ export default function Chat() {
           <View style={styles.headerButton} />
         )}
       </View>
+
+      {showDateFeature && match ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="デートの相談"
+          testID="date-banner"
+          onPress={() => router.push(`/date/${matchId}`)}
+          style={({ pressed }) => [styles.dateBanner, pressed && { opacity: 0.85 }]}
+        >
+          <Text style={styles.dateBannerText} numberOfLines={2}>
+            {dateStatus?.status === 'confirmed' && dateStatus.can_feedback
+              ? '昨日のデートはいかがでしたか？ ひとことお聞かせください →'
+              : dateStatus?.status === 'confirmed' && dateStatus.confirmed_slot
+                ? `📅 デートが決まっています: ${dateStatus.confirmed_slot.label} →`
+                : dateStatus?.my_intent === false
+                  ? '気が向いたら「デートの相談」からどうぞ →'
+                  : '💐 そろそろ会ってみませんか？ デートの相談へ →'}
+          </Text>
+        </Pressable>
+      ) : null}
 
       {messagesQuery.isPending || matchQuery.isPending ? (
         <View style={styles.center}>
@@ -353,6 +386,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: spacing.lg,
+  },
+  dateBanner: {
+    backgroundColor: colors.primarySoft,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm + 2,
+    minHeight: sizes.tapArea,
+    justifyContent: 'center',
+  },
+  dateBannerText: {
+    fontSize: fontSize.body,
+    color: colors.primary,
+    fontWeight: '700',
+    lineHeight: 24,
   },
   emptyText: {
     fontSize: fontSize.body,

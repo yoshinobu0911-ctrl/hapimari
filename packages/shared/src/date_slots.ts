@@ -55,9 +55,7 @@ function isWeekend(dateStr: string): boolean {
 }
 
 function matchesTimeRange(dateStr: string, time: AvailableTime): boolean {
-  return time === 'weekend_am' || time === 'weekend_pm'
-    ? isWeekend(dateStr)
-    : !isWeekend(dateStr);
+  return time === 'weekend_am' || time === 'weekend_pm' ? isWeekend(dateStr) : !isWeekend(dateStr);
 }
 
 export function slotLabel(dateStr: string, time: AvailableTime): string {

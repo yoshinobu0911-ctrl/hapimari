@@ -6,7 +6,7 @@ export * from './discover_filters';
 export * from './fraud_words';
 export * from './like_rules';
 export * from './like_visibility';
-export * from './prefecture_capitals';
 export * from './payment-provider';
+export * from './prefecture_capitals';
 export type { Database } from './types/database';
 export * from './value_tags';

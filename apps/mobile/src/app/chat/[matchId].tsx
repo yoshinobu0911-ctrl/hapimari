@@ -1,8 +1,4 @@
-import {
-  type CallListener,
-  DATE_PROPOSAL_MESSAGE_COUNT,
-  MESSAGE_BODY_MAX_LENGTH,
-} from '@hapimari/shared';
+import { type CallListener, MESSAGE_BODY_MAX_LENGTH } from '@hapimari/shared';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -82,8 +78,8 @@ export default function Chat() {
   const match = matchQuery.data;
   const partnerId = match ? (match.user_a === myId ? match.user_b : match.user_a) : null;
 
-  // R5: 20通以上でデート機能が解放される
-  const showDateFeature = (match?.message_count ?? 0) >= DATE_PROPOSAL_MESSAGE_COUNT;
+  // デートの相談はマッチ成立直後から利用可（2026-07-12: 20通条件を撤廃）
+  const showDateFeature = !!match;
   const dateStatusQuery = useQuery({
     queryKey: ['date-status', matchId],
     enabled: !!matchId && !!session && showDateFeature,

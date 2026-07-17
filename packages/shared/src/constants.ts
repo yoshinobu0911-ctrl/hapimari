@@ -21,11 +21,8 @@ export const MIN_AGE = {
  */
 export const FEMALE_DAILY_LIKE_LIMIT = 100;
 
-/** R5: 通話解禁のメッセージ数（5往復=10メッセージ） */
-export const CALL_UNLOCK_MESSAGE_COUNT = 10;
-
-/** R5: デート打診バナー表示のメッセージ数（10往復=20メッセージ） */
-export const DATE_PROPOSAL_MESSAGE_COUNT = 20;
+// 旧R5の通話解禁(10通)・デート打診(20通)のメッセージ数条件は
+// 2026-07-12 オーナー決定によりすべて撤廃（マッチ成立直後から利用可）
 
 /** M5: 通話の最大秒数（15分でクライアント側強制終了） */
 export const CALL_MAX_DURATION_SECONDS = 900;

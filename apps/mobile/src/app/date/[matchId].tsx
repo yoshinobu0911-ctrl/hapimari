@@ -1,9 +1,4 @@
-import {
-  DATE_PROPOSAL_MESSAGE_COUNT,
-  type DateSlot,
-  generateDateSlots,
-  suggestArea,
-} from '@hapimari/shared';
+import { type DateSlot, generateDateSlots, suggestArea } from '@hapimari/shared';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
@@ -142,21 +137,7 @@ export default function DateConsult() {
 
   const partnerName = partner ? `${partner.nickname}さん` : 'お相手';
 
-  // R5: 20通未満はここに来ない導線だが、直接遷移への防御
-  if (s.message_count < DATE_PROPOSAL_MESSAGE_COUNT) {
-    return (
-      <View style={styles.container}>
-        {header}
-        <View style={styles.center}>
-          <Text style={styles.note}>
-            デートの相談は、メッセージを{DATE_PROPOSAL_MESSAGE_COUNT}
-            通以上重ねてからご利用いただけます。
-            {'\n'}（あと{DATE_PROPOSAL_MESSAGE_COUNT - s.message_count}通）
-          </Text>
-        </View>
-      </View>
-    );
-  }
+  // 2026-07-12: 20通条件は撤廃。マッチ成立直後からデートの相談ができる
 
   const candidates =
     partner && myProfile

@@ -65,7 +65,7 @@ export default function Signup() {
       {error ? <Text style={styles.error}>{error}</Text> : null}
       <AppButton label="登録する" onPress={submit} loading={loading} testID="signup-submit" />
       <Text style={styles.note}>
-        ※ハピマリは女性35歳以上・男性45歳以上の方向けのサービスです。{'\n'}
+        ※ハピマリは35歳以上の方向けのサービスです。{'\n'}
         次の画面でご本人の情報をご入力いただきます。
       </Text>
       <AppButton

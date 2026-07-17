@@ -30,10 +30,10 @@ export default function Step1() {
       setError('生年月日を正しく入力してください');
       return;
     }
-    // R1: 女性35歳以上・男性45歳以上（M1受け入れ条件: 34歳女性・44歳男性は拒否）
+    // R1: 男女とも35歳以上（2026-07-12改定。34歳以下は拒否）
     if (!canRegister(draft.gender, birthDate)) {
       setError(
-        `申し訳ございません。ハピマリは女性${MIN_AGE.female}歳以上・男性${MIN_AGE.male}歳以上の方向けのサービスのため、ご登録いただけません。`,
+        `申し訳ございません。ハピマリは${MIN_AGE.female}歳以上の方向けのサービスのため、ご登録いただけません。`,
       );
       return;
     }

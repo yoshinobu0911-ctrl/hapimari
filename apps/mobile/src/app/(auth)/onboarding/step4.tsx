@@ -77,7 +77,9 @@ export default function Step4() {
       if (insertError) {
         // DB側のR1制約（profiles_min_age_check）にかかった場合など
         if (insertError.message.includes('profiles_min_age_check')) {
-          setError('年齢条件を満たしていないため登録できません（女性35歳以上・男性45歳以上）。');
+          setError(
+            '年齢条件を満たしていないため登録できません（ご登録は35歳以上の方が対象です）。',
+          );
         } else {
           setError(`登録に失敗しました: ${insertError.message}`);
         }

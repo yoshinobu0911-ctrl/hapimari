@@ -14,7 +14,7 @@ export default function Welcome() {
         <Text style={styles.description}>
           ハピマリは、大人世代のためのまじめなパートナー探しの場です。
           {'\n'}はじめての方も、再びの方も、あなたのペースで、安心して。
-          {'\n'}（ご登録は女性35歳以上・男性45歳以上）
+          {'\n'}（ご登録は35歳以上の方が対象です）
         </Text>
       </View>
       <View style={styles.actions}>

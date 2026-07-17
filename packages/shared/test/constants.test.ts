@@ -10,21 +10,19 @@ describe('calcAge', () => {
   });
 });
 
-describe('canRegister（R1: 女性35歳以上・男性45歳以上）', () => {
-  it('34歳女性は登録不可（M1受け入れ条件）', () => {
+describe('canRegister（R1: 男女とも35歳以上・2026-07-12改定）', () => {
+  it('34歳は男女とも登録不可', () => {
     expect(canRegister('female', '1991-12-01', NOW)).toBe(false);
+    expect(canRegister('male', '1991-12-01', NOW)).toBe(false);
   });
 
-  it('35歳女性は登録可', () => {
+  it('35歳は男女とも登録可', () => {
     expect(canRegister('female', '1991-07-01', NOW)).toBe(true);
+    expect(canRegister('male', '1991-07-01', NOW)).toBe(true);
   });
 
-  it('44歳男性は登録不可（M1受け入れ条件）', () => {
-    expect(canRegister('male', '1981-12-01', NOW)).toBe(false);
-  });
-
-  it('45歳男性は登録可', () => {
-    expect(canRegister('male', '1981-07-01', NOW)).toBe(true);
+  it('44歳男性も登録可（旧仕様の45歳制限は撤廃済み）', () => {
+    expect(canRegister('male', '1981-12-01', NOW)).toBe(true);
   });
 
   it('上限なし: 80歳でも登録可', () => {

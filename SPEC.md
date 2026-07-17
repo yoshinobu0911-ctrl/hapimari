@@ -165,9 +165,9 @@ create table daily_stats (
 |---|---|---|
 | R1 | 登録可能年齢: 女性35歳以上・男性45歳以上（上限なし） | サインアップバリデーション + DB check |
 | R2 | is_verified=false のユーザーはメッセージ送信不可 | RLS + UI |
-| R3 | 子持ち女性は understands_children=true の男性にのみ**表示**される（子ども情報はプロフィールに表示しない・いいね時エラーは廃止。相手が先にいいねした場合のいいね返しはゲート対象外）※2026-07-07 オーナー承認・案A | 検索クエリの除外条件 + Edge Function（防御層として維持） |
+| R3 | **廃止（2026-07-12 オーナー決定）**。子持ち関連の制限・除外は行わない。子ども情報はプロフィールに表示せず、has_children / understands_children は相性スコアの参考値としてのみ使用 | - |
 | R4 | 同一女性が24時間に受け取る「いいね」上限100件。超過分は翌日繰越表示（F-40簡易版）※2026-07-06 オーナー決定で20→100に変更 | Edge Function |
-| R5 | message_count>=10（5往復）で通話解禁、>=20（10往復）でデート打診バナー表示 | matches.message_count |
+| R5 | **通話はマッチ成立後すぐ利用可**（2026-07-12 オーナー決定で10通条件を撤廃。matches.call_unlocked 列は未使用）。message_count>=20（10往復）のデート打診バナーは維持 | matches.message_count |
 | R6 | デート打診は両者 intent=true になるまで相手に一切通知しない | date_proposals |
 | R7 | デートプラン提案の時間帯は weekday_lunch / weekend_am を上位固定 | 提案ロジック |
 | R8 | メッセージ本文に金銭・投資・外部誘導ワード（辞書は `packages/shared/fraud_words.ts`、初期50語をエージェントが作成）を検知したら flagged=true + 受信者に注意バナー | DBトリガ or Edge Function |

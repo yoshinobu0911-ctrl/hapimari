@@ -141,10 +141,10 @@ export default function Chat() {
     };
   }, [matchId, myId, queryClient]);
 
-  // M5: 着信の監視（この画面が表示されている間のみ・通話解禁済みマッチのみ）
+  // 着信の監視（この画面が表示されている間のみ。2026-07-12: マッチ成立後すぐ通話可）
   useFocusEffect(
     useCallback(() => {
-      if (!matchId || !myId || !match?.call_unlocked) return;
+      if (!matchId || !myId || !match) return;
       const listener = mockCallProvider.listen(matchId, myId, {
         onIncoming: () => setIncomingCall(true),
         onCancelled: () => setIncomingCall(false),
@@ -155,7 +155,7 @@ export default function Chat() {
         callListenerRef.current = null;
         setIncomingCall(false);
       };
-    }, [matchId, myId, match?.call_unlocked]),
+    }, [matchId, myId, match]),
   );
 
   const messages = messagesQuery.data ?? [];
@@ -221,7 +221,7 @@ export default function Chat() {
             {partner ? partner.nickname : '表示できないユーザー'}
           </Text>
         </Pressable>
-        {match?.call_unlocked && partner ? (
+        {partner ? (
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="音声通話"

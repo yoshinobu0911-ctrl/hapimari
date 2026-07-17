@@ -66,7 +66,6 @@ export default function Discover() {
         id: myProfile.id,
         gender: myProfile.gender as 'male' | 'female',
         prefecture: myProfile.prefecture,
-        understandsChildren: myProfile.understands_children,
       });
     },
   });

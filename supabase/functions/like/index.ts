@@ -2,8 +2,9 @@
  * いいね送信 Edge Function（docs/design/M3_design.md §4.1）
  *
  * likes への直接INSERTは migration で禁止済み（RLSポリシー削除+GRANT剥奪）。
- * いいねは必ずこの関数を経由し、R3（子持ち理解宣言ゲート）と R4（表示繰越判定）を検証する。
+ * いいねは必ずこの関数を経由し、業務検証と R4（表示繰越判定）を行う。
  * 判定ロジックは packages/shared/src/like_rules.ts（Vitestテスト済み）を共用する。
+ * ※ R3（子持ち理解ゲート）は 2026-07-12 オーナー指示で撤廃。
  *
  * 入力:  { toUser: string, message?: string }（message は200字以内・任意）
  * 成功:  { ok: true, matched: boolean, matchId?: string, carriedOver: boolean }
@@ -116,14 +117,6 @@ Deno.serve(async (req) => {
     .eq('id', toUser)
     .maybeSingle();
 
-  // 相手が先に自分へいいねしている場合、R3ゲートは適用しない（いいね返し・M6案A）
-  const { data: reverseLike } = await admin
-    .from('likes')
-    .select('id')
-    .eq('from_user', toUser)
-    .eq('to_user', user.id)
-    .maybeSingle();
-
   const { data: blocked, error: blockedError } = await admin.rpc('is_blocked_between', {
     a: user.id,
     b: toUser,
@@ -140,7 +133,6 @@ Deno.serve(async (req) => {
     toRuleUser(senderRow as ProfileRow),
     targetRow ? toRuleUser(targetRow as ProfileRow) : null,
     blocked === true,
-    !!reverseLike,
   );
   if (!verdict.ok) {
     return json(verdict.status, { ok: false, error: verdict.error, message: verdict.message });

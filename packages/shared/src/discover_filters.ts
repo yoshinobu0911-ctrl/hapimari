@@ -62,11 +62,6 @@ export interface DiscoverConditions {
   /** in 条件。null = 県で絞らない（距離モード・全国） */
   prefectures: string[] | null;
   maritalHistories: string[] | null;
-  /**
-   * R3の表示除外（案A）: 理解宣言のない男性には子持ち女性を出さない。
-   * false = has_children=false のみ表示 / null = 条件なし
-   */
-  hasChildren: boolean | null;
   marriageIntents: string[] | null;
   availableTimesOverlaps: string[] | null;
   /** 距離モード時の上限（取得後に applyDistanceFilter で適用）。null = 距離絞り込みなし */
@@ -81,8 +76,6 @@ function isoDateYearsAgo(now: Date, years: number): string {
 export interface DiscoverMe {
   gender: 'male' | 'female';
   prefecture: string;
-  /** R3表示除外の判定に使用（男性のみ意味を持つ） */
-  understandsChildren: boolean;
 }
 
 /** フィルタ状態を検索条件に変換する（年齢→birth_date の変換規則はM3から不変） */
@@ -107,8 +100,7 @@ export function buildDiscoverConditions(
     birthDateAfter: filter.ageMax != null ? isoDateYearsAgo(now, filter.ageMax + 1) : null,
     prefectures,
     maritalHistories,
-    // R3（案A）: 理解宣言のない男性には子持ち女性をそもそも表示しない
-    hasChildren: me.gender === 'male' && !me.understandsChildren ? false : null,
+    // R3（子持ち理解ゲート）は2026-07-12オーナー指示で撤廃（誰にでも全員が表示される）
     marriageIntents: filter.marriageIntents.length > 0 ? [...filter.marriageIntents] : null,
     availableTimesOverlaps: filter.availableTimes.length > 0 ? [...filter.availableTimes] : null,
     distanceLimitKm: filter.area.mode === 'distance' ? filter.area.limitKm : null,

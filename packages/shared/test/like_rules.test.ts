@@ -12,45 +12,19 @@ function user(overrides: Partial<LikeRuleUser> = {}): LikeRuleUser {
   };
 }
 
-const maleNoDecl = user({ id: 'm1', gender: 'male', understandsChildren: false });
-const maleWithDecl = user({ id: 'm2', gender: 'male', understandsChildren: true });
-const femaleWithChildren = user({ id: 'f1', gender: 'female', hasChildren: true });
-const femaleNoChildren = user({ id: 'f2', gender: 'female', hasChildren: false });
+const male = user({ id: 'm1', gender: 'male' });
+const female = user({ id: 'f1', gender: 'female' });
+const femaleWithChildren = user({ id: 'f2', gender: 'female', hasChildren: true });
 
-describe('validateLike: R3の4象限', () => {
-  it('子持ち女性 × 理解宣言なし男性 = NG（understands_children_required）', () => {
-    const result = validateLike(maleNoDecl, femaleWithChildren, false);
-    expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.error).toBe('understands_children_required');
-      expect(result.status).toBe(403);
-      expect(result.message).toContain('お子さまのいるお相手');
-    }
+describe('validateLike', () => {
+  it('通常のいいねはOK（子持ち・宣言の有無は問わない。R3は2026-07-12撤廃）', () => {
+    expect(validateLike(male, female, false).ok).toBe(true);
+    // 宣言なし男性 → 子持ち女性 も送れる（ゲート撤廃）
+    expect(validateLike(male, femaleWithChildren, false).ok).toBe(true);
+    // 女性 → 男性 も当然OK
+    expect(validateLike(female, male, false).ok).toBe(true);
   });
 
-  it('子持ち女性 × 理解宣言あり男性 = OK', () => {
-    expect(validateLike(maleWithDecl, femaleWithChildren, false).ok).toBe(true);
-  });
-
-  it('子なし女性 × 理解宣言なし男性 = OK', () => {
-    expect(validateLike(maleNoDecl, femaleNoChildren, false).ok).toBe(true);
-  });
-
-  it('いいね返しはR3を適用しない（子持ち女性が先にいいねした宣言なし男性からの返し・M6案A）', () => {
-    const blocked = validateLike(maleNoDecl, femaleWithChildren, false, false);
-    expect(blocked.ok).toBe(false);
-    const likeBack = validateLike(maleNoDecl, femaleWithChildren, false, true);
-    expect(likeBack.ok).toBe(true);
-  });
-
-  it('女性→男性は宣言に関係なく OK（子持ち女性が送る側でも制限しない）', () => {
-    const femaleSender = user({ id: 'f3', gender: 'female', hasChildren: true });
-    const maleTarget = user({ id: 'm3', gender: 'male', hasChildren: true });
-    expect(validateLike(femaleSender, maleTarget, false).ok).toBe(true);
-  });
-});
-
-describe('validateLike: R3以外の拒否条件', () => {
   it('自分自身へのいいねは self_like（400）', () => {
     const me = user({ id: 'same' });
     const result = validateLike(me, user({ id: 'same', gender: 'female' }), false);
@@ -62,24 +36,24 @@ describe('validateLike: R3以外の拒否条件', () => {
   });
 
   it('ブロック関係があると blocked（403）', () => {
-    const result = validateLike(maleWithDecl, femaleNoChildren, true);
+    const result = validateLike(male, female, true);
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error).toBe('blocked');
   });
 
   it('同性へのいいねは target_not_found', () => {
-    const result = validateLike(maleNoDecl, user({ id: 'm9', gender: 'male' }), false);
+    const result = validateLike(male, user({ id: 'm9', gender: 'male' }), false);
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error).toBe('target_not_found');
   });
 
   it('相手が見つからない/非activeは target_not_found（404）', () => {
-    const missing = validateLike(maleNoDecl, null, false);
+    const missing = validateLike(male, null, false);
     expect(missing.ok).toBe(false);
     if (!missing.ok) expect(missing.status).toBe(404);
 
     const suspended = validateLike(
-      maleNoDecl,
+      male,
       user({ id: 'f9', gender: 'female', status: 'suspended' }),
       false,
     );
@@ -88,7 +62,7 @@ describe('validateLike: R3以外の拒否条件', () => {
   });
 
   it('送信者が非activeは not_active（403）', () => {
-    const result = validateLike(user({ status: 'suspended' }), femaleNoChildren, false);
+    const result = validateLike(user({ status: 'suspended' }), female, false);
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.error).toBe('not_active');

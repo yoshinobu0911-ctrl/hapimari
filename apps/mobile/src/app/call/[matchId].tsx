@@ -6,6 +6,7 @@ import {
   remainingCallSeconds,
 } from '@hapimari/shared';
 import { useQuery } from '@tanstack/react-query';
+import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
@@ -70,7 +71,7 @@ export default function CallScreen() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('profiles')
-        .select('nickname')
+        .select('nickname, photo_urls')
         .eq('id', partnerId ?? '')
         .maybeSingle();
       if (error) throw error;
@@ -78,6 +79,7 @@ export default function CallScreen() {
     },
   });
   const partnerName = partnerQuery.data ? `${partnerQuery.data.nickname}さん` : 'お相手';
+  const partnerPhoto = partnerQuery.data?.photo_urls?.[0];
 
   // 通話セッションの開始（1回だけ）
   useEffect(() => {
@@ -161,6 +163,13 @@ export default function CallScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + spacing.xl }]}>
+      {partnerPhoto ? (
+        <Image source={{ uri: partnerPhoto }} style={styles.avatar} contentFit="cover" />
+      ) : (
+        <View style={[styles.avatar, styles.avatarPlaceholder]}>
+          <Text style={styles.avatarInitial}>{partnerQuery.data?.nickname?.[0] ?? '👤'}</Text>
+        </View>
+      )}
       <Text style={styles.partner} testID="call-partner">
         {partnerName}
       </Text>
@@ -221,14 +230,32 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: spacing.lg,
   },
+  avatar: {
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    backgroundColor: colors.surface,
+    marginTop: spacing.lg,
+  },
+  avatarPlaceholder: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  avatarInitial: {
+    fontSize: 48,
+    color: colors.textSub,
+  },
   partner: {
-    fontSize: 32,
+    fontSize: 34,
     fontWeight: '700',
     color: colors.text,
-    marginTop: spacing.xl,
+    marginTop: spacing.lg,
   },
   state: {
-    fontSize: fontSize.heading,
+    fontSize: 22,
+    fontWeight: '600',
     color: colors.textSub,
     marginTop: spacing.md,
   },

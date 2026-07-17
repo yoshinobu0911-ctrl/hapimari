@@ -34,8 +34,6 @@ export function buildDiscoverQuery(filter: DiscoverFilter, me: DiscoverMe & { id
   if (c.birthDateAfter) query = query.gt('birth_date', c.birthDateAfter);
   if (c.prefectures) query = query.in('prefecture', c.prefectures);
   if (c.maritalHistories) query = query.in('marital_history', c.maritalHistories);
-  // R3（案A）: 理解宣言のない男性には子持ち女性をそもそも表示しない
-  if (c.hasChildren != null) query = query.eq('has_children', c.hasChildren);
   if (c.marriageIntents) query = query.in('marriage_intent', c.marriageIntents);
   if (c.availableTimesOverlaps) query = query.overlaps('available_times', c.availableTimesOverlaps);
 

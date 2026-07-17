@@ -10,7 +10,7 @@ import {
 } from '../src/discover_filters';
 
 const NOW = new Date('2026-07-06T12:00:00+09:00');
-const me: DiscoverMe = { gender: 'male', prefecture: '東京都', understandsChildren: true };
+const me: DiscoverMe = { gender: 'male', prefecture: '東京都' };
 
 function filter(overrides: Partial<DiscoverFilter> = {}): DiscoverFilter {
   return { ...DEFAULT_DISCOVER_FILTER, ...overrides };
@@ -26,19 +26,6 @@ describe('buildDiscoverConditions（M6: 距離モードが既定）', () => {
     expect(c.maritalHistories).toBeNull();
     expect(c.marriageIntents).toBeNull();
     expect(c.availableTimesOverlaps).toBeNull();
-  });
-
-  it('R3表示除外（案A）: 理解宣言のない男性には子持ち女性を出さない', () => {
-    const noDecl: DiscoverMe = { ...me, understandsChildren: false };
-    expect(buildDiscoverConditions(filter(), noDecl, NOW).hasChildren).toBe(false);
-    expect(buildDiscoverConditions(filter(), me, NOW).hasChildren).toBeNull();
-    // 女性側は宣言に関係なく除外なし
-    const female: DiscoverMe = {
-      gender: 'female',
-      prefecture: '千葉県',
-      understandsChildren: false,
-    };
-    expect(buildDiscoverConditions(filter(), female, NOW).hasChildren).toBeNull();
   });
 
   it('年齢→birth_dateレンジの両端（45歳以上55歳以下）', () => {

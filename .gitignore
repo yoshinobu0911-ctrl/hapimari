@@ -8,10 +8,9 @@ dist/
 build/
 .turbo/
 
-# env
-.env
-.env.local
-.env.*.local
+# env（.env.example 以外の .env 系はすべて除外）
+.env*
+!.env.example
 
 # supabase
 supabase/.temp/

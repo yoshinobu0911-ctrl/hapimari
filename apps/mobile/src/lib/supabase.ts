@@ -4,7 +4,16 @@ import { createClient } from '@supabase/supabase-js';
 import { Platform } from 'react-native';
 
 // ローカル開発時のフォールバックは supabase start の共通デモ値（全開発者共通の公開値）。
-// 本番ビルドでは必ず EXPO_PUBLIC_SUPABASE_URL / EXPO_PUBLIC_SUPABASE_ANON_KEY を設定する。
+// 本番ビルド（__DEV__ === false）では環境変数未設定のまま起動させない。
+if (
+  !__DEV__ &&
+  !(process.env.EXPO_PUBLIC_SUPABASE_URL && process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY)
+) {
+  throw new Error(
+    '環境変数 EXPO_PUBLIC_SUPABASE_URL / EXPO_PUBLIC_SUPABASE_ANON_KEY が未設定です。本番ビルドではデモ値フォールバックを使用しません。',
+  );
+}
+
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL ?? 'http://127.0.0.1:54321';
 const supabaseAnonKey =
   process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ??

@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppButton } from '@/components/ui/app-button';
 import { colors, fontSize, spacing } from '@/constants/theme';
 import { mockCallProvider } from '@/lib/call-provider-mock';
+import { usePhotoUrl } from '@/lib/photo-url';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/auth';
 
@@ -69,8 +70,9 @@ export default function CallScreen() {
     queryKey: ['profile', partnerId],
     enabled: !!partnerId,
     queryFn: async () => {
+      // M6.5: 他人のプロフィールは profiles_public ビュー経由
       const { data, error } = await supabase
-        .from('profiles')
+        .from('profiles_public')
         .select('nickname, photo_urls')
         .eq('id', partnerId ?? '')
         .maybeSingle();
@@ -78,8 +80,8 @@ export default function CallScreen() {
       return data;
     },
   });
-  const partnerName = partnerQuery.data ? `${partnerQuery.data.nickname}さん` : 'お相手';
-  const partnerPhoto = partnerQuery.data?.photo_urls?.[0];
+  const partnerName = partnerQuery.data?.nickname ? `${partnerQuery.data.nickname}さん` : 'お相手';
+  const partnerPhoto = usePhotoUrl(partnerQuery.data?.photo_urls?.[0]);
 
   // 通話セッションの開始（1回だけ）
   useEffect(() => {

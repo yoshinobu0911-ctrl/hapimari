@@ -1,20 +1,19 @@
 import {
   assignVisibleDates,
   type CompatibilityInput,
-  calcAge,
   calcCompatibility,
   FEMALE_DAILY_LIKE_LIMIT,
   shouldShowCompatibility,
 } from '@hapimari/shared';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useEffect } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ProfilePhoto } from '@/components/profile-photo';
 import { colors, fontSize, sizes, spacing } from '@/constants/theme';
 import { useMyProfile } from '@/hooks/use-my-profile';
-import { type Profile, supabase } from '@/lib/supabase';
+import { type Profile, type PublicProfile, supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/auth';
 
 type LikeRow = {
@@ -25,15 +24,11 @@ type LikeRow = {
   created_at: string | null;
 };
 
-function toCompatInput(p: Profile): CompatibilityInput {
+function toCompatInput(p: Profile | PublicProfile): CompatibilityInput {
   return {
     valueTags: p.value_tags ?? [],
     availableTimes: p.available_times ?? [],
     marriageIntent: p.marriage_intent,
-    maritalHistory: p.marital_history,
-    hasChildren: p.has_children,
-    understandsChildren: p.understands_children,
-    understandsRemarriage: p.understands_remarriage,
   };
 }
 
@@ -62,17 +57,20 @@ export default function Likes() {
       if (error) throw error;
       const senderIds = [...new Set(likes.map((l) => l.from_user))];
       if (senderIds.length === 0) {
-        return { likes: likes as LikeRow[], profiles: {} as Record<string, Profile> };
+        return { likes: likes as LikeRow[], profiles: {} as Record<string, PublicProfile> };
       }
-      // ブロック・退会・凍結済みの送り主はRLSにより返らない（→一覧から除外される）
+      // ブロック・退会・凍結済みの送り主はビューの条件により返らない（→一覧から除外される）
       const { data: profiles, error: profileError } = await supabase
-        .from('profiles')
+        .from('profiles_public')
         .select('*')
         .in('id', senderIds);
       if (profileError) throw profileError;
       return {
         likes: likes as LikeRow[],
-        profiles: Object.fromEntries(profiles.map((p) => [p.id, p])) as Record<string, Profile>,
+        profiles: Object.fromEntries((profiles as PublicProfile[]).map((p) => [p.id, p])) as Record<
+          string,
+          PublicProfile
+        >,
       };
     },
   });
@@ -131,7 +129,6 @@ export default function Likes() {
             const sender = query.data?.profiles[like.from_user];
             if (!sender) return null;
             const compatibility = me ? calcCompatibility(me, toCompatInput(sender)) : 0;
-            const photo = sender.photo_urls?.[0];
             return (
               <Pressable
                 key={like.id}
@@ -140,17 +137,16 @@ export default function Likes() {
                 onPress={() => router.push(`/profile/${sender.id}`)}
                 style={({ pressed }) => [styles.card, pressed && { opacity: 0.85 }]}
               >
-                {photo ? (
-                  <Image source={{ uri: photo }} style={styles.photo} contentFit="cover" />
-                ) : (
-                  <View style={[styles.photo, styles.photoPlaceholder]}>
-                    <Text style={styles.photoPlaceholderText}>写真なし</Text>
-                  </View>
-                )}
+                <ProfilePhoto
+                  path={sender.photo_urls?.[0]}
+                  style={styles.photo}
+                  placeholderStyle={styles.photoPlaceholder}
+                  placeholderTextStyle={styles.photoPlaceholderText}
+                />
                 <View style={styles.cardBody}>
                   <Text style={styles.name} numberOfLines={1}>
                     {sender.nickname}
-                    <Text style={styles.age}> {calcAge(sender.birth_date)}歳</Text>
+                    <Text style={styles.age}> {sender.age}歳</Text>
                   </Text>
                   {shouldShowCompatibility(compatibility) ? (
                     <Text style={styles.compatibility}>相性 {compatibility}%</Text>

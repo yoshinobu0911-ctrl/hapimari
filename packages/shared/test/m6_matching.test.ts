@@ -12,10 +12,6 @@ const base: CompatibilityInput = {
   valueTags: ['comm_lunch', 'hobby_travel', 'char_calm'],
   availableTimes: ['weekday_lunch', 'weekend_am'],
   marriageIntent: 'within_2y',
-  maritalHistory: 'divorced',
-  hasChildren: false,
-  understandsChildren: true,
-  understandsRemarriage: true,
 };
 
 describe('distanceScore（M6 B6 ランク表）', () => {

@@ -12,10 +12,10 @@ import {
   type DiscoverFilter,
   type DiscoverMe,
 } from '@hapimari/shared';
-import { type Profile, supabase } from '@/lib/supabase';
+import { type PublicProfile, supabase } from '@/lib/supabase';
 
 export interface DiscoverResult {
-  profiles: Profile[];
+  profiles: PublicProfile[];
   /** 相手ID→現在地からの距離(km)。自分が位置未許可なら空 */
   distances: Map<string, number>;
 }
@@ -23,15 +23,17 @@ export interface DiscoverResult {
 export function buildDiscoverQuery(filter: DiscoverFilter, me: DiscoverMe & { id: string }) {
   const c: DiscoverConditions = buildDiscoverConditions(filter, me);
 
+  // M6.5: 他人のプロフィールは profiles_public ビュー経由
+  // （birth_date・子ども情報・課金状態は取得不能。年齢はビューの age 列で絞る）
   let query = supabase
-    .from('profiles')
+    .from('profiles_public')
     .select('*')
     .neq('id', me.id)
     .eq('status', 'active')
     .eq('gender', c.gender);
 
-  if (c.birthDateOnOrBefore) query = query.lte('birth_date', c.birthDateOnOrBefore);
-  if (c.birthDateAfter) query = query.gt('birth_date', c.birthDateAfter);
+  if (c.ageGte != null) query = query.gte('age', c.ageGte);
+  if (c.ageLte != null) query = query.lte('age', c.ageLte);
   if (c.prefectures) query = query.in('prefecture', c.prefectures);
   if (c.maritalHistories) query = query.in('marital_history', c.maritalHistories);
   if (c.marriageIntents) query = query.in('marriage_intent', c.marriageIntents);
@@ -56,7 +58,7 @@ export async function fetchDiscoverProfiles(
 ): Promise<DiscoverResult> {
   const { data, error } = await buildDiscoverQuery(filter, me);
   if (error) throw error;
-  const profiles = data ?? [];
+  const profiles = (data ?? []) as PublicProfile[];
 
   const distances = await fetchDistances(profiles.map((p) => p.id));
 

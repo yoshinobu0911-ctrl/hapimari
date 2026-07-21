@@ -20,6 +20,7 @@ import { Screen } from '@/components/ui/screen';
 import { ValueTagsSelector } from '@/components/ui/value-tags-selector';
 import { colors, fontSize, sizes, spacing } from '@/constants/theme';
 import { useMyProfile } from '@/hooks/use-my-profile';
+import { usePhotoUrl } from '@/lib/photo-url';
 import { type ProfileUpdate, supabase } from '@/lib/supabase';
 import { uploadProfilePhoto } from '@/lib/upload-photo';
 import { useAuthStore } from '@/stores/auth';
@@ -49,9 +50,12 @@ export default function ProfileEdit() {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
+  // 保存済み写真はパスなので署名付きURLへ変換（新規選択した写真はローカルURIをそのまま表示）
+  const savedPhotoUrl = usePhotoUrl(profile?.photo_urls?.[0]);
+
   if (!profile || !session) return null;
 
-  const currentPhoto = newPhoto?.uri ?? profile.photo_urls?.[0];
+  const currentPhoto = newPhoto?.uri ?? savedPhotoUrl;
 
   const pickPhoto = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({

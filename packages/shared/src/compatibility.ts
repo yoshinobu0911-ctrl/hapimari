@@ -2,7 +2,7 @@
  * 相性スコア（discoverカードの「相性 XX%」）
  *
  * ユーザーがオンボーディングで選んだ価値観タグを最重視し（50%）、
- * 会える時間帯・結婚意向・子ども/再婚への理解を加味して 0〜100 で返す。
+ * 距離・会える時間帯・結婚意向を加味して 0〜100 で返す。
  * 判定はクライアント側の純粋関数（M3の検索・並び替えでも再利用する）。
  */
 
@@ -10,23 +10,22 @@ export interface CompatibilityInput {
   valueTags: readonly string[];
   availableTimes: readonly string[];
   marriageIntent: string | null;
-  maritalHistory: string;
-  hasChildren: boolean;
-  understandsChildren: boolean;
-  understandsRemarriage: boolean;
 }
 
 /**
- * M6改訂: 距離15%を導入（2026-07-07 オーナー承認 判断#8）。
+ * M6改訂: 距離を導入（2026-07-07 オーナー承認 判断#8）。
  * 距離不明（位置未許可等）の場合は距離を除いた重みで再正規化し、
  * 他の価値観を優先して評価する（オーナー指示）。
+ *
+ * M6.5改訂（2026-07-21 オーナー承認 判断#4）: 「事情への理解」10%を除外。
+ * 他人の子ども情報・理解宣言は profiles_public から取得できない（秘匿）ため、
+ * 旧比率 45:15:15:15 をそのまま再正規化した（タグ50%・他は各1/6）。
  */
 const WEIGHTS = {
-  tags: 0.45,
-  distance: 0.15,
-  times: 0.15,
-  intent: 0.15,
-  understanding: 0.1,
+  tags: 0.5,
+  distance: 1 / 6,
+  times: 1 / 6,
+  intent: 1 / 6,
 } as const;
 
 /**
@@ -77,14 +76,6 @@ function intentScore(a: string | null, b: string | null): number {
   return [1.0, 0.7, 0.4, 0.2][distance] ?? 0.2;
 }
 
-/** x が y の事情（子ども・再婚歴）を受け止められるか */
-function understandingOneWay(x: CompatibilityInput, y: CompatibilityInput): number {
-  let score = 1.0;
-  if (y.hasChildren && !x.understandsChildren) score -= 0.6;
-  if (y.maritalHistory !== 'unmarried' && !x.understandsRemarriage) score -= 0.4;
-  return Math.max(0, score);
-}
-
 /**
  * 相性スコアを 40〜98 の整数で返す。
  * 情報が少ない相手でも中立値で計算されるため、必ず表示可能な値が返る。
@@ -100,13 +91,8 @@ export function calcCompatibility(
   const tagRatio = overlapRatio(me.valueTags, other.valueTags) ?? 0.5;
   const timeRatio = overlapRatio(me.availableTimes, other.availableTimes) ?? 0.5;
   const intent = intentScore(me.marriageIntent, other.marriageIntent);
-  const understanding = (understandingOneWay(me, other) + understandingOneWay(other, me)) / 2;
 
-  const base =
-    tagRatio * WEIGHTS.tags +
-    timeRatio * WEIGHTS.times +
-    intent * WEIGHTS.intent +
-    understanding * WEIGHTS.understanding;
+  const base = tagRatio * WEIGHTS.tags + timeRatio * WEIGHTS.times + intent * WEIGHTS.intent;
 
   const raw =
     distanceKm != null

@@ -1,18 +1,3 @@
-Scope: all 4 workspace projects
-✓ Lockfile passes supply-chain policies (verified 13d ago)
-Lockfile is up to date, resolution step is skipped
-Already up to date
-
-   ╭──────────────────────────────────────────╮
-   │                                          │
-   │   Update available! 11.10.0 → 11.15.1.   │
-   │   Changelog: https://pnpm.io/v/11.15.1   │
-   │     To update, run: pnpm self-update     │
-   │                                          │
-   ╰──────────────────────────────────────────╯
-
-
-Done in 5.2s using pnpm v11.10.0
 export type Json =
   | string
   | number
@@ -409,22 +394,7 @@ export type Database = {
           status?: string
           user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "photo_reviews_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "photo_reviews_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles_public"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       profile_locations: {
         Row: {
@@ -704,7 +674,7 @@ export type Database = {
           marriage_intent?: string | null
           money_view?: string | null
           nickname?: string | null
-          photo_urls?: string[] | null
+          photo_urls?: never
           prefecture?: string | null
           single_cert_verified?: boolean | null
           status?: string | null
@@ -725,7 +695,7 @@ export type Database = {
           marriage_intent?: string | null
           money_view?: string | null
           nickname?: string | null
-          photo_urls?: string[] | null
+          photo_urls?: never
           prefecture?: string | null
           single_cert_verified?: boolean | null
           status?: string | null
@@ -775,6 +745,7 @@ export type Database = {
       is_blocked_between: { Args: { a: string; b: string }; Returns: boolean }
       is_match_blocked: { Args: { target_match: string }; Returns: boolean }
       is_match_participant: { Args: { target_match: string }; Returns: boolean }
+      is_photo_approved: { Args: { p_path: string }; Returns: boolean }
       propose_date_slot: {
         Args: { p_area: string; p_match_id: string; p_slot: Json }
         Returns: Json

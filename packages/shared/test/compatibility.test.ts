@@ -7,14 +7,12 @@ import {
 } from '../src/compatibility';
 import { VALUE_TAG_LABELS, VALUE_TAGS, valueTagsByCategory } from '../src/value_tags';
 
+// M6.5（2026-07-21）: 「事情への理解」項目は相性計算から除外された。
+// 他人の子ども情報・理解宣言は profiles_public から取得できない（秘匿設計の帰結）。
 const base: CompatibilityInput = {
   valueTags: ['comm_lunch', 'hobby_travel', 'char_calm'],
   availableTimes: ['weekday_lunch', 'weekend_am'],
   marriageIntent: 'within_2y',
-  maritalHistory: 'divorced',
-  hasChildren: true,
-  understandsChildren: true,
-  understandsRemarriage: true,
 };
 
 describe('VALUE_TAGS', () => {
@@ -32,14 +30,7 @@ describe('calcCompatibility', () => {
   it('40〜98の範囲に収まる', () => {
     const best = calcCompatibility(base, { ...base });
     const worst = calcCompatibility(
-      {
-        ...base,
-        valueTags: ['a'],
-        availableTimes: ['weekday_night'],
-        marriageIntent: 'asap',
-        understandsChildren: false,
-        understandsRemarriage: false,
-      },
+      { ...base, valueTags: ['a'], availableTimes: ['weekday_night'], marriageIntent: 'asap' },
       { ...base, valueTags: ['b'], availableTimes: ['weekend_pm'], marriageIntent: 'partner_only' },
     );
     expect(best).toBe(98);
@@ -59,12 +50,6 @@ describe('calcCompatibility', () => {
     const score = calcCompatibility(base, { ...base, valueTags: [] });
     expect(score).toBeGreaterThanOrEqual(40);
     expect(score).toBeLessThanOrEqual(98);
-  });
-
-  it('子持ちの相手に理解宣言がないと下がる', () => {
-    const withUnderstanding = calcCompatibility(base, { ...base });
-    const without = calcCompatibility({ ...base, understandsChildren: false }, { ...base });
-    expect(without).toBeLessThan(withUnderstanding);
   });
 
   it('結婚意向が近いほど高い', () => {

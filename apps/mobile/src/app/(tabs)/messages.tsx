@@ -1,12 +1,11 @@
-import { calcAge } from '@hapimari/shared';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useEffect } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ProfilePhoto } from '@/components/profile-photo';
 import { colors, fontSize, spacing } from '@/constants/theme';
-import { type Profile, supabase } from '@/lib/supabase';
+import { type PublicProfile, supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/auth';
 
 type MatchRow = {
@@ -55,15 +54,15 @@ export default function Messages() {
       if (error) throw error;
 
       const partnerIds = matches.map((m) => (m.user_a === myId ? m.user_b : m.user_a));
-      let profiles: Record<string, Profile> = {};
+      let profiles: Record<string, PublicProfile> = {};
       if (partnerIds.length > 0) {
-        // ブロック・退会済みの相手はRLSにより返らない（→「表示できないユーザー」扱い）
+        // ブロック・退会済みの相手はビューの条件により返らない（→「表示できないユーザー」扱い）
         const { data: rows, error: profileError } = await supabase
-          .from('profiles')
+          .from('profiles_public')
           .select('*')
           .in('id', partnerIds);
         if (profileError) throw profileError;
-        profiles = Object.fromEntries(rows.map((p) => [p.id, p]));
+        profiles = Object.fromEntries((rows as PublicProfile[]).map((p) => [p.id, p]));
       }
 
       // 最新メッセージ: MVPでは全件取得しクライアントで先頭を選ぶ（§5.5）
@@ -132,7 +131,6 @@ export default function Messages() {
             const partnerId = match.user_a === myId ? match.user_b : match.user_a;
             const partner = query.data?.profiles[partnerId];
             const lastMessage = query.data?.latest[match.id];
-            const photo = partner?.photo_urls?.[0];
             return (
               <Pressable
                 key={match.id}
@@ -143,17 +141,17 @@ export default function Messages() {
                 onPress={() => router.push(`/chat/${match.id}`)}
                 style={({ pressed }) => [styles.row, pressed && { opacity: 0.85 }]}
               >
-                {photo ? (
-                  <Image source={{ uri: photo }} style={styles.avatar} contentFit="cover" />
-                ) : (
-                  <View style={[styles.avatar, styles.avatarPlaceholder]}>
-                    <Text style={styles.avatarPlaceholderText}>{partner ? '写真\nなし' : '—'}</Text>
-                  </View>
-                )}
+                <ProfilePhoto
+                  path={partner?.photo_urls?.[0]}
+                  style={styles.avatar}
+                  placeholderStyle={styles.avatarPlaceholder}
+                  placeholderText={partner ? '写真\nなし' : '—'}
+                  placeholderTextStyle={styles.avatarPlaceholderText}
+                />
                 <View style={styles.rowBody}>
                   <Text style={styles.name} numberOfLines={1}>
                     {partner
-                      ? `${partner.nickname}（${calcAge(partner.birth_date)}歳）`
+                      ? `${partner.nickname}（${partner.age}歳）`
                       : '退会またはブロックされたユーザー'}
                   </Text>
                   <Text style={styles.preview} numberOfLines={1}>

@@ -60,8 +60,9 @@ export default function DateConsult() {
     queryKey: ['profile', partnerId],
     enabled: !!partnerId,
     queryFn: async () => {
+      // M6.5: 他人のプロフィールは profiles_public ビュー経由
       const { data, error: e } = await supabase
-        .from('profiles')
+        .from('profiles_public')
         .select('*')
         .eq('id', partnerId ?? '')
         .maybeSingle();
@@ -143,7 +144,7 @@ export default function DateConsult() {
     partner && myProfile
       ? generateDateSlots(myProfile.available_times ?? [], partner.available_times ?? [])
       : [];
-  const area = partner ? suggestArea(myProfile.prefecture, partner.prefecture) : null;
+  const area = partner?.prefecture ? suggestArea(myProfile.prefecture, partner.prefecture) : null;
 
   let body: React.ReactNode;
 

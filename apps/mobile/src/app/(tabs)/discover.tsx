@@ -15,20 +15,17 @@ import { colors, fontSize, sizes, spacing } from '@/constants/theme';
 import { useMyProfile } from '@/hooks/use-my-profile';
 import { fetchDiscoverProfiles } from '@/lib/discover-query';
 import { syncMyLocation } from '@/lib/location';
-import type { Profile } from '@/lib/supabase';
+import type { Profile, PublicProfile } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/auth';
 import { useFilterStore } from '@/stores/filter';
 import { useLocationStore } from '@/stores/location';
 
-function toCompatInput(p: Profile): CompatibilityInput {
+// M6.5: 相性計算はタグ・時間帯・結婚観のみ（理解項目は廃止・秘匿情報を使わない）
+function toCompatInput(p: Profile | PublicProfile): CompatibilityInput {
   return {
     valueTags: p.value_tags ?? [],
     availableTimes: p.available_times ?? [],
     marriageIntent: p.marriage_intent,
-    maritalHistory: p.marital_history,
-    hasChildren: p.has_children,
-    understandsChildren: p.understands_children,
-    understandsRemarriage: p.understands_remarriage,
   };
 }
 

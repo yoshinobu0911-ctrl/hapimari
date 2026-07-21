@@ -9,7 +9,6 @@ import {
   formatDistanceLabel,
 } from '../src/discover_filters';
 
-const NOW = new Date('2026-07-06T12:00:00+09:00');
 const me: DiscoverMe = { gender: 'male', prefecture: '東京都' };
 
 function filter(overrides: Partial<DiscoverFilter> = {}): DiscoverFilter {
@@ -18,31 +17,31 @@ function filter(overrides: Partial<DiscoverFilter> = {}): DiscoverFilter {
 
 describe('buildDiscoverConditions（M6: 距離モードが既定）', () => {
   it('既定フィルタ = 異性・距離30km・県条件なし', () => {
-    const c = buildDiscoverConditions(filter(), me, NOW);
+    const c = buildDiscoverConditions(filter(), me);
     expect(c.gender).toBe('female');
     expect(c.prefectures).toBeNull();
     expect(c.distanceLimitKm).toBe(30);
-    expect(c.birthDateOnOrBefore).toBeNull();
+    expect(c.ageGte).toBeNull();
+    expect(c.ageLte).toBeNull();
     expect(c.maritalHistories).toBeNull();
     expect(c.marriageIntents).toBeNull();
     expect(c.availableTimesOverlaps).toBeNull();
   });
 
-  it('年齢→birth_dateレンジの両端（45歳以上55歳以下）', () => {
-    const c = buildDiscoverConditions(filter({ ageMin: 45, ageMax: 55 }), me, NOW);
-    expect(c.birthDateOnOrBefore).toBe('1981-07-06');
-    expect(c.birthDateAfter).toBe('1970-07-06');
+  it('年齢レンジは profiles_public の age 列にそのまま渡す（M6.5: birth_date秘匿の帰結）', () => {
+    const c = buildDiscoverConditions(filter({ ageMin: 45, ageMax: 55 }), me);
+    expect(c.ageGte).toBe(45);
+    expect(c.ageLte).toBe(55);
   });
 
   it('エリア「全国」「県を選ぶ」では距離絞り込みなし', () => {
-    const all = buildDiscoverConditions(filter({ area: { mode: 'all' } }), me, NOW);
+    const all = buildDiscoverConditions(filter({ area: { mode: 'all' } }), me);
     expect(all.prefectures).toBeNull();
     expect(all.distanceLimitKm).toBeNull();
 
     const custom = buildDiscoverConditions(
       filter({ area: { mode: 'custom', prefectures: ['北海道'] } }),
       me,
-      NOW,
     );
     expect(custom.prefectures).toEqual(['北海道']);
     expect(custom.distanceLimitKm).toBeNull();
@@ -50,11 +49,11 @@ describe('buildDiscoverConditions（M6: 距離モードが既定）', () => {
 
   it('距離モードの上限は変更可能・「制限なし」はnull', () => {
     expect(
-      buildDiscoverConditions(filter({ area: { mode: 'distance', limitKm: 100 } }), me, NOW)
+      buildDiscoverConditions(filter({ area: { mode: 'distance', limitKm: 100 } }), me)
         .distanceLimitKm,
     ).toBe(100);
     expect(
-      buildDiscoverConditions(filter({ area: { mode: 'distance', limitKm: null } }), me, NOW)
+      buildDiscoverConditions(filter({ area: { mode: 'distance', limitKm: null } }), me)
         .distanceLimitKm,
     ).toBeNull();
   });

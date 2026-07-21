@@ -91,8 +91,9 @@ export default function Chat() {
     queryKey: ['profile', partnerId],
     enabled: !!partnerId,
     queryFn: async () => {
+      // M6.5: 他人のプロフィールは profiles_public ビュー経由
       const { data, error } = await supabase
-        .from('profiles')
+        .from('profiles_public')
         .select('*')
         .eq('id', partnerId ?? '')
         .maybeSingle();

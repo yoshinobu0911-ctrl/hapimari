@@ -57,8 +57,9 @@ export const DEFAULT_DISCOVER_FILTER: DiscoverFilter = {
 /** PostgREST 適用用の条件宣言（null = その条件を適用しない） */
 export interface DiscoverConditions {
   gender: 'male' | 'female';
-  birthDateOnOrBefore: string | null;
-  birthDateAfter: string | null;
+  /** M6.5: 検索対象は profiles_public ビュー。年齢はビューの age 列（サーバー計算済み整数）で絞る */
+  ageGte: number | null;
+  ageLte: number | null;
   /** in 条件。null = 県で絞らない（距離モード・全国） */
   prefectures: string[] | null;
   maritalHistories: string[] | null;
@@ -68,21 +69,15 @@ export interface DiscoverConditions {
   distanceLimitKm: number | null;
 }
 
-function isoDateYearsAgo(now: Date, years: number): string {
-  const d = new Date(Date.UTC(now.getFullYear() - years, now.getMonth(), now.getDate()));
-  return d.toISOString().slice(0, 10);
-}
-
 export interface DiscoverMe {
   gender: 'male' | 'female';
   prefecture: string;
 }
 
-/** フィルタ状態を検索条件に変換する（年齢→birth_date の変換規則はM3から不変） */
+/** フィルタ状態を検索条件に変換する（M6.5: 年齢はビューの age 列で直接絞る） */
 export function buildDiscoverConditions(
   filter: DiscoverFilter,
   me: DiscoverMe,
-  now: Date = new Date(),
 ): DiscoverConditions {
   let prefectures: string[] | null = null;
   if (filter.area.mode === 'custom') {
@@ -96,8 +91,8 @@ export function buildDiscoverConditions(
 
   return {
     gender: me.gender === 'male' ? 'female' : 'male',
-    birthDateOnOrBefore: filter.ageMin != null ? isoDateYearsAgo(now, filter.ageMin) : null,
-    birthDateAfter: filter.ageMax != null ? isoDateYearsAgo(now, filter.ageMax + 1) : null,
+    ageGte: filter.ageMin,
+    ageLte: filter.ageMax,
     prefectures,
     maritalHistories,
     // R3（子持ち理解ゲート）は2026-07-12オーナー指示で撤廃（誰にでも全員が表示される）

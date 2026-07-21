@@ -1,7 +1,7 @@
 import { calcAge } from '@hapimari/shared';
-import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
+import { ProfilePhoto } from '@/components/profile-photo';
 import { AppButton } from '@/components/ui/app-button';
 import { Screen } from '@/components/ui/screen';
 import { colors, fontSize, sizes, spacing } from '@/constants/theme';
@@ -49,18 +49,15 @@ export default function MyPage() {
     );
   };
 
-  const photo = profile.photo_urls?.[0];
-
   return (
     <Screen title="マイページ">
       <View style={styles.profileRow}>
-        {photo ? (
-          <Image source={{ uri: photo }} style={styles.photo} contentFit="cover" />
-        ) : (
-          <View style={[styles.photo, styles.photoPlaceholder]}>
-            <Text style={styles.photoPlaceholderText}>写真なし</Text>
-          </View>
-        )}
+        <ProfilePhoto
+          path={profile.photo_urls?.[0]}
+          style={styles.photo}
+          placeholderStyle={styles.photoPlaceholder}
+          placeholderTextStyle={styles.photoPlaceholderText}
+        />
         <View style={styles.profileInfo}>
           <Text style={styles.name} testID="mypage-nickname">
             {profile.nickname}

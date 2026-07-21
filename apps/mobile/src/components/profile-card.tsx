@@ -1,11 +1,11 @@
-import { calcAge, shouldShowCompatibility } from '@hapimari/shared';
-import { Image } from 'expo-image';
+import { shouldShowCompatibility } from '@hapimari/shared';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { ProfilePhoto } from '@/components/profile-photo';
 import { colors, sizes, spacing } from '@/constants/theme';
-import type { Profile } from '@/lib/supabase';
+import type { PublicProfile } from '@/lib/supabase';
 
 interface Props {
-  profile: Profile;
+  profile: PublicProfile;
   /** 相性スコア（40〜98）。discover側で calcCompatibility により算出 */
   compatibility: number;
   /** 現在地からの距離（丸め済みラベル）。位置未許可・距離不明時は undefined（M6 判断#9） */
@@ -20,30 +20,28 @@ interface Props {
  * 結婚歴・子どもの有無などの事情はプロフィール詳細（M3）で伝える。
  */
 export function ProfileCard({ profile, compatibility, distanceLabel, onPress }: Props) {
-  const photo = profile.photo_urls?.[0];
   const showCompatibility = shouldShowCompatibility(compatibility);
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={
         showCompatibility
-          ? `${profile.nickname}さん ${calcAge(profile.birth_date)}歳 相性${compatibility}パーセント`
-          : `${profile.nickname}さん ${calcAge(profile.birth_date)}歳`
+          ? `${profile.nickname}さん ${profile.age}歳 相性${compatibility}パーセント`
+          : `${profile.nickname}さん ${profile.age}歳`
       }
       onPress={onPress}
       style={({ pressed }) => [styles.card, pressed && { opacity: 0.85 }]}
     >
-      {photo ? (
-        <Image source={{ uri: photo }} style={styles.photo} contentFit="cover" />
-      ) : (
-        <View style={[styles.photo, styles.photoPlaceholder]}>
-          <Text style={styles.photoPlaceholderText}>写真なし</Text>
-        </View>
-      )}
+      <ProfilePhoto
+        path={profile.photo_urls?.[0]}
+        style={styles.photo}
+        placeholderStyle={styles.photoPlaceholder}
+        placeholderTextStyle={styles.photoPlaceholderText}
+      />
       <View style={styles.body}>
         <Text style={styles.name} numberOfLines={1}>
           {profile.nickname}
-          <Text style={styles.age}> {calcAge(profile.birth_date)}歳</Text>
+          <Text style={styles.age}> {profile.age}歳</Text>
         </Text>
         {showCompatibility ? <Text style={styles.compatibility}>相性 {compatibility}%</Text> : null}
         {distanceLabel ? <Text style={styles.distance}>📍 {distanceLabel}</Text> : null}

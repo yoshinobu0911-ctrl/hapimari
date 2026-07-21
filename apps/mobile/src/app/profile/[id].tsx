@@ -1,7 +1,6 @@
 import {
   AVAILABLE_TIMES,
   type CompatibilityInput,
-  calcAge,
   calcCompatibility,
   compatibilityReasons,
   formatDistanceLabel,
@@ -12,11 +11,11 @@ import {
   VALUE_TAG_LABELS,
 } from '@hapimari/shared';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ProfilePhoto } from '@/components/profile-photo';
 import { AppButton } from '@/components/ui/app-button';
 import { AppTextField } from '@/components/ui/app-text-field';
 import { colors, fontSize, sizes, spacing } from '@/constants/theme';
@@ -24,18 +23,15 @@ import { useMyProfile } from '@/hooks/use-my-profile';
 import { confirmDialog } from '@/lib/confirm';
 import { fetchDistances } from '@/lib/discover-query';
 import { sendLike } from '@/lib/like-api';
-import { type Profile, supabase } from '@/lib/supabase';
+import { type Profile, type PublicProfile, supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/auth';
 
-function toCompatInput(p: Profile): CompatibilityInput {
+// M6.5: 相性計算はタグ・時間帯・結婚観のみ（理解項目は廃止・秘匿情報を使わない）
+function toCompatInput(p: Profile | PublicProfile): CompatibilityInput {
   return {
     valueTags: p.value_tags ?? [],
     availableTimes: p.available_times ?? [],
     marriageIntent: p.marriage_intent,
-    maritalHistory: p.marital_history,
-    hasChildren: p.has_children,
-    understandsChildren: p.understands_children,
-    understandsRemarriage: p.understands_remarriage,
   };
 }
 
@@ -75,13 +71,14 @@ export default function ProfileDetail() {
     queryKey: ['profile', id],
     enabled: !!id && !!session,
     queryFn: async () => {
+      // M6.5: 他人のプロフィールは profiles_public ビュー経由（birth_date等は取得不能）
       const { data, error } = await supabase
-        .from('profiles')
+        .from('profiles_public')
         .select('*')
         .eq('id', id)
         .maybeSingle();
       if (error) throw error;
-      return data;
+      return data as PublicProfile | null;
     },
   });
 
@@ -237,17 +234,16 @@ export default function ProfileDetail() {
     <View style={styles.container}>
       {header}
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-        {photos.length > 0 ? (
-          <Image source={{ uri: photos[0] }} style={styles.photo} contentFit="cover" />
-        ) : (
-          <View style={[styles.photo, styles.photoPlaceholder]}>
-            <Text style={styles.photoPlaceholderText}>写真なし</Text>
-          </View>
-        )}
+        <ProfilePhoto
+          path={photos[0]}
+          style={styles.photo}
+          placeholderStyle={styles.photoPlaceholder}
+          placeholderTextStyle={styles.photoPlaceholderText}
+        />
         {photos.length > 1 ? (
           <ScrollView horizontal style={styles.subPhotos} showsHorizontalScrollIndicator={false}>
-            {photos.slice(1).map((url) => (
-              <Image key={url} source={{ uri: url }} style={styles.subPhoto} contentFit="cover" />
+            {photos.slice(1).map((path) => (
+              <ProfilePhoto key={path} path={path} style={styles.subPhoto} />
             ))}
           </ScrollView>
         ) : null}
@@ -255,7 +251,7 @@ export default function ProfileDetail() {
         <View style={styles.body}>
           <Text style={styles.name} testID="profile-name">
             {profile.nickname}
-            <Text style={styles.age}> {calcAge(profile.birth_date)}歳</Text>
+            <Text style={styles.age}> {profile.age}歳</Text>
           </Text>
           {shouldShowCompatibility(compatibility) ? (
             <Text style={styles.compatibility}>相性 {compatibility}%</Text>

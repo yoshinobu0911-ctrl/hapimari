@@ -10,6 +10,7 @@ export const metadata: Metadata = {
 const NAV_ITEMS = [
   { href: '/', label: 'ダッシュボード' },
   { href: '/verifications', label: '本人確認審査' },
+  { href: '/photos', label: '写真審査' },
   { href: '/reports', label: '通報対応' },
   { href: '/users', label: 'ユーザー検索・凍結' },
   { href: '/flagged', label: 'flaggedメッセージ' },

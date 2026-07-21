@@ -3,21 +3,35 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 export const dynamic = 'force-dynamic';
 
 export default async function Dashboard() {
-  const [total, males, females, pending, matches, openReports, flagged] = await Promise.all([
-    supabaseAdmin.from('profiles').select('*', { count: 'exact', head: true }),
-    supabaseAdmin.from('profiles').select('*', { count: 'exact', head: true }).eq('gender', 'male'),
-    supabaseAdmin
-      .from('profiles')
-      .select('*', { count: 'exact', head: true })
-      .eq('gender', 'female'),
-    supabaseAdmin
-      .from('verifications')
-      .select('*', { count: 'exact', head: true })
-      .eq('status', 'pending'),
-    supabaseAdmin.from('matches').select('*', { count: 'exact', head: true }),
-    supabaseAdmin.from('reports').select('*', { count: 'exact', head: true }).eq('status', 'open'),
-    supabaseAdmin.from('messages').select('*', { count: 'exact', head: true }).eq('flagged', true),
-  ]);
+  const [total, males, females, pending, pendingPhotos, matches, openReports, flagged] =
+    await Promise.all([
+      supabaseAdmin.from('profiles').select('*', { count: 'exact', head: true }),
+      supabaseAdmin
+        .from('profiles')
+        .select('*', { count: 'exact', head: true })
+        .eq('gender', 'male'),
+      supabaseAdmin
+        .from('profiles')
+        .select('*', { count: 'exact', head: true })
+        .eq('gender', 'female'),
+      supabaseAdmin
+        .from('verifications')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'pending'),
+      supabaseAdmin
+        .from('photo_reviews')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'pending'),
+      supabaseAdmin.from('matches').select('*', { count: 'exact', head: true }),
+      supabaseAdmin
+        .from('reports')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'open'),
+      supabaseAdmin
+        .from('messages')
+        .select('*', { count: 'exact', head: true })
+        .eq('flagged', true),
+    ]);
 
   const cards = [
     {
@@ -29,6 +43,11 @@ export default async function Dashboard() {
       label: '審査待ちの書類',
       value: `${pending.count ?? 0}件`,
       highlight: (pending.count ?? 0) > 0,
+    },
+    {
+      label: '審査待ちの写真',
+      value: `${pendingPhotos.count ?? 0}件`,
+      highlight: (pendingPhotos.count ?? 0) > 0,
     },
     { label: 'マッチ数', value: `${matches.count ?? 0}組`, highlight: false },
     {
@@ -46,7 +65,7 @@ export default async function Dashboard() {
   return (
     <div>
       <h1 className="mb-6 text-2xl font-bold">ダッシュボード</h1>
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-6">
         {cards.map((card) => (
           <div
             key={card.label}

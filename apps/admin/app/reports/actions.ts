@@ -1,6 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { assertAdminAuth } from '@/lib/admin-auth';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 
 function revalidateReportPages() {
@@ -11,6 +12,7 @@ function revalidateReportPages() {
 
 /** 対応済みにする（ユーザーへの措置なし） */
 export async function markActioned(formData: FormData) {
+  await assertAdminAuth();
   const id = String(formData.get('id') ?? '');
   if (!id) return;
   const { error } = await supabaseAdmin.from('reports').update({ status: 'actioned' }).eq('id', id);
@@ -20,6 +22,7 @@ export async function markActioned(formData: FormData) {
 
 /** 対応済みにし、対象ユーザーを凍結する */
 export async function actionAndSuspend(formData: FormData) {
+  await assertAdminAuth();
   const id = String(formData.get('id') ?? '');
   const reported = String(formData.get('reported') ?? '');
   if (!id || !reported) return;
@@ -38,6 +41,7 @@ export async function actionAndSuspend(formData: FormData) {
 
 /** 棄却（対応不要と判断） */
 export async function dismissReport(formData: FormData) {
+  await assertAdminAuth();
   const id = String(formData.get('id') ?? '');
   if (!id) return;
   const { error } = await supabaseAdmin

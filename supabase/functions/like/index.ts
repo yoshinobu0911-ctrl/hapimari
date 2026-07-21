@@ -15,6 +15,7 @@ import {
   FEMALE_DAILY_LIKE_LIMIT,
   LIKE_MESSAGE_MAX_LENGTH,
 } from '../../../packages/shared/src/constants.ts';
+import { findFraudWords } from '../../../packages/shared/src/fraud_words.ts';
 import { type LikeRuleUser, validateLike } from '../../../packages/shared/src/like_rules.ts';
 
 const corsHeaders = {
@@ -94,6 +95,16 @@ Deno.serve(async (req) => {
       ok: false,
       error: 'message_too_long',
       message: `一言メッセージは${LIKE_MESSAGE_MAX_LENGTH}文字以内で入力してください。`,
+    });
+  }
+  // M6.5 対応7（Leo指摘）: 一言メッセージにも詐欺ワード検査を適用（チャットのflaggedと同じ辞書）。
+  // チャットと違い未マッチの相手に届くため、警告表示ではなく送信自体を拒否する。
+  const fraudWords = findFraudWords(message);
+  if (fraudWords.length > 0) {
+    return json(400, {
+      ok: false,
+      error: 'fraud_message',
+      message: `一言メッセージに使用できない表現が含まれています（${fraudWords[0]}）。内容を変えてお試しください。`,
     });
   }
 

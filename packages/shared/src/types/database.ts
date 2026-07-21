@@ -1,3 +1,18 @@
+Scope: all 4 workspace projects
+✓ Lockfile passes supply-chain policies (verified 13d ago)
+Lockfile is up to date, resolution step is skipped
+Already up to date
+
+   ╭──────────────────────────────────────────╮
+   │                                          │
+   │   Update available! 11.10.0 → 11.15.1.   │
+   │   Changelog: https://pnpm.io/v/11.15.1   │
+   │     To update, run: pnpm self-update     │
+   │                                          │
+   ╰──────────────────────────────────────────╯
+
+
+Done in 5.2s using pnpm v11.10.0
 export type Json =
   | string
   | number
@@ -62,10 +77,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "blocks_blocked_fkey"
+            columns: ["blocked"]
+            isOneToOne: false
+            referencedRelation: "profiles_public"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "blocks_blocker_fkey"
             columns: ["blocker"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "blocks_blocker_fkey"
+            columns: ["blocker"]
+            isOneToOne: false
+            referencedRelation: "profiles_public"
             referencedColumns: ["id"]
           },
         ]
@@ -225,10 +254,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "likes_from_user_fkey"
+            columns: ["from_user"]
+            isOneToOne: false
+            referencedRelation: "profiles_public"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "likes_to_user_fkey"
             columns: ["to_user"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "likes_to_user_fkey"
+            columns: ["to_user"]
+            isOneToOne: false
+            referencedRelation: "profiles_public"
             referencedColumns: ["id"]
           },
         ]
@@ -267,10 +310,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "matches_user_a_fkey"
+            columns: ["user_a"]
+            isOneToOne: false
+            referencedRelation: "profiles_public"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "matches_user_b_fkey"
             columns: ["user_b"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "matches_user_b_fkey"
+            columns: ["user_b"]
+            isOneToOne: false
+            referencedRelation: "profiles_public"
             referencedColumns: ["id"]
           },
         ]
@@ -315,22 +372,80 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "messages_sender_fkey"
+            columns: ["sender"]
+            isOneToOne: false
+            referencedRelation: "profiles_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      photo_reviews: {
+        Row: {
+          ai_detail: string | null
+          ai_verdict: string | null
+          created_at: string
+          path: string
+          reviewed_at: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          ai_detail?: string | null
+          ai_verdict?: string | null
+          created_at?: string
+          path: string
+          reviewed_at?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          ai_detail?: string | null
+          ai_verdict?: string | null
+          created_at?: string
+          path?: string
+          reviewed_at?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "photo_reviews_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "photo_reviews_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       profile_locations: {
         Row: {
+          daily_count: number
+          daily_date: string
           loc_lat: number
           loc_lng: number
           updated_at: string
           user_id: string
         }
         Insert: {
+          daily_count?: number
+          daily_date?: string
           loc_lat: number
           loc_lng: number
           updated_at?: string
           user_id: string
         }
         Update: {
+          daily_count?: number
+          daily_date?: string
           loc_lat?: number
           loc_lng?: number
           updated_at?: string
@@ -342,6 +457,13 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: true
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profile_locations_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles_public"
             referencedColumns: ["id"]
           },
         ]
@@ -470,10 +592,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "reports_reported_fkey"
+            columns: ["reported"]
+            isOneToOne: false
+            referencedRelation: "profiles_public"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "reports_reporter_fkey"
             columns: ["reporter"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reports_reporter_fkey"
+            columns: ["reporter"]
+            isOneToOne: false
+            referencedRelation: "profiles_public"
             referencedColumns: ["id"]
           },
         ]
@@ -520,11 +656,83 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "verifications_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
     }
     Views: {
-      [_ in never]: never
+      profiles_public: {
+        Row: {
+          age: number | null
+          available_times: string[] | null
+          bio: string | null
+          city: string | null
+          cohabit_view: string | null
+          created_at: string | null
+          gender: string | null
+          id: string | null
+          income_verified: boolean | null
+          is_verified: boolean | null
+          marital_history: string | null
+          marriage_intent: string | null
+          money_view: string | null
+          nickname: string | null
+          photo_urls: string[] | null
+          prefecture: string | null
+          single_cert_verified: boolean | null
+          status: string | null
+          value_tags: string[] | null
+        }
+        Insert: {
+          age?: never
+          available_times?: string[] | null
+          bio?: string | null
+          city?: string | null
+          cohabit_view?: string | null
+          created_at?: string | null
+          gender?: string | null
+          id?: string | null
+          income_verified?: boolean | null
+          is_verified?: boolean | null
+          marital_history?: string | null
+          marriage_intent?: string | null
+          money_view?: string | null
+          nickname?: string | null
+          photo_urls?: string[] | null
+          prefecture?: string | null
+          single_cert_verified?: boolean | null
+          status?: string | null
+          value_tags?: string[] | null
+        }
+        Update: {
+          age?: never
+          available_times?: string[] | null
+          bio?: string | null
+          city?: string | null
+          cohabit_view?: string | null
+          created_at?: string | null
+          gender?: string | null
+          id?: string | null
+          income_verified?: boolean | null
+          is_verified?: boolean | null
+          marital_history?: string | null
+          marriage_intent?: string | null
+          money_view?: string | null
+          nickname?: string | null
+          photo_urls?: string[] | null
+          prefecture?: string | null
+          single_cert_verified?: boolean | null
+          status?: string | null
+          value_tags?: string[] | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       _date_get_match: {
@@ -550,6 +758,12 @@ export type Database = {
       }
       cancel_date: { Args: { p_match_id: string }; Returns: Json }
       compute_daily_stats: { Args: { p_date: string }; Returns: undefined }
+      get_approved_photo_paths: {
+        Args: { p_paths: string[] }
+        Returns: {
+          path: string
+        }[]
+      }
       get_date_status: { Args: { p_match_id: string }; Returns: Json }
       get_profile_distances: {
         Args: { p_user_ids: string[] }
@@ -559,20 +773,35 @@ export type Database = {
         }[]
       }
       is_blocked_between: { Args: { a: string; b: string }; Returns: boolean }
+      is_match_blocked: { Args: { target_match: string }; Returns: boolean }
       is_match_participant: { Args: { target_match: string }; Returns: boolean }
       propose_date_slot: {
         Args: { p_area: string; p_match_id: string; p_slot: Json }
         Returns: Json
       }
       purchase_subscription: { Args: { p_plan: string }; Returns: Json }
+      register_photo_for_review: {
+        Args: { p_path: string }
+        Returns: undefined
+      }
       respond_date_slot: {
         Args: { p_accept: boolean; p_match_id: string }
         Returns: Json
       }
-      review_verification: {
-        Args: { approve: boolean; reason?: string; verification_id: string }
-        Returns: undefined
-      }
+      review_verification:
+        | {
+            Args: { approve: boolean; reason?: string; verification_id: string }
+            Returns: undefined
+          }
+        | {
+            Args: {
+              approve: boolean
+              p_reviewer?: string
+              reason?: string
+              verification_id: string
+            }
+            Returns: undefined
+          }
       set_date_intent: {
         Args: { p_intent: boolean; p_match_id: string }
         Returns: Json

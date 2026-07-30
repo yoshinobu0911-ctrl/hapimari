@@ -12,7 +12,7 @@ import {
 } from '@hapimari/shared';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ProfilePhoto } from '@/components/profile-photo';
@@ -20,6 +20,7 @@ import { AppButton } from '@/components/ui/app-button';
 import { AppTextField } from '@/components/ui/app-text-field';
 import { colors, fontSize, sizes, spacing } from '@/constants/theme';
 import { useMyProfile } from '@/hooks/use-my-profile';
+import { logEvent } from '@/lib/analytics';
 import { confirmDialog } from '@/lib/confirm';
 import { fetchDistances } from '@/lib/discover-query';
 import { sendLike } from '@/lib/like-api';
@@ -62,6 +63,11 @@ export default function ProfileDetail() {
   const session = useAuthStore((s) => s.session);
   const { data: myProfile } = useMyProfile();
   const myId = session?.user.id ?? '';
+
+  // 行動ログ: プロフィール閲覧（レコメンドの学習データとして初日から蓄積する）
+  useEffect(() => {
+    if (id && session) logEvent('profile_view', id);
+  }, [id, session]);
 
   const [likeMessage, setLikeMessage] = useState('');
   const [sending, setSending] = useState(false);

@@ -34,6 +34,24 @@ export type Database = {
   }
   public: {
     Tables: {
+      available_time_master: {
+        Row: {
+          label: string
+          sort_order: number
+          value: string
+        }
+        Insert: {
+          label: string
+          sort_order: number
+          value: string
+        }
+        Update: {
+          label?: string
+          sort_order?: number
+          value?: string
+        }
+        Relationships: []
+      }
       blocks: {
         Row: {
           blocked: string
@@ -149,39 +167,57 @@ export type Database = {
       date_proposals: {
         Row: {
           area_suggestion: string | null
+          cancelled_at: string | null
+          confirmed_at: string | null
           confirmed_slot: Json | null
           created_at: string | null
+          date_on: string | null
+          done_at: string | null
           feedback_a: string | null
           feedback_b: string | null
+          first_proposed_at: string | null
           id: string
           intent_a: boolean | null
           intent_b: boolean | null
+          intent_matched_at: string | null
           match_id: string
           proposed_slots: Json | null
           status: string
         }
         Insert: {
           area_suggestion?: string | null
+          cancelled_at?: string | null
+          confirmed_at?: string | null
           confirmed_slot?: Json | null
           created_at?: string | null
+          date_on?: string | null
+          done_at?: string | null
           feedback_a?: string | null
           feedback_b?: string | null
+          first_proposed_at?: string | null
           id?: string
           intent_a?: boolean | null
           intent_b?: boolean | null
+          intent_matched_at?: string | null
           match_id: string
           proposed_slots?: Json | null
           status?: string
         }
         Update: {
           area_suggestion?: string | null
+          cancelled_at?: string | null
+          confirmed_at?: string | null
           confirmed_slot?: Json | null
           created_at?: string | null
+          date_on?: string | null
+          done_at?: string | null
           feedback_a?: string | null
           feedback_b?: string | null
+          first_proposed_at?: string | null
           id?: string
           intent_a?: boolean | null
           intent_b?: boolean | null
+          intent_matched_at?: string | null
           match_id?: string
           proposed_slots?: Json | null
           status?: string
@@ -447,6 +483,7 @@ export type Database = {
           city: string | null
           cohabit_view: string | null
           created_at: string | null
+          email_bounced: boolean
           gender: string
           has_children: boolean
           id: string
@@ -475,6 +512,7 @@ export type Database = {
           city?: string | null
           cohabit_view?: string | null
           created_at?: string | null
+          email_bounced?: boolean
           gender: string
           has_children?: boolean
           id: string
@@ -503,6 +541,7 @@ export type Database = {
           city?: string | null
           cohabit_view?: string | null
           created_at?: string | null
+          email_bounced?: boolean
           gender?: string
           has_children?: boolean
           id?: string
@@ -583,6 +622,96 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      user_events: {
+        Row: {
+          actor_id: string | null
+          event_type: string
+          id: number
+          match_id: string | null
+          occurred_at: string
+          props: Json
+          target_user_id: string | null
+        }
+        Insert: {
+          actor_id?: string | null
+          event_type: string
+          id?: number
+          match_id?: string | null
+          occurred_at?: string
+          props?: Json
+          target_user_id?: string | null
+        }
+        Update: {
+          actor_id?: string | null
+          event_type?: string
+          id?: number
+          match_id?: string | null
+          occurred_at?: string
+          props?: Json
+          target_user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_events_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_events_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_events_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "matches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_events_target_user_id_fkey"
+            columns: ["target_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_events_target_user_id_fkey"
+            columns: ["target_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      value_tag_master: {
+        Row: {
+          active: boolean
+          category: string
+          id: string
+          label: string
+          sort_order: number
+        }
+        Insert: {
+          active?: boolean
+          category: string
+          id: string
+          label: string
+          sort_order: number
+        }
+        Update: {
+          active?: boolean
+          category?: string
+          id?: string
+          label?: string
+          sort_order?: number
+        }
+        Relationships: []
       }
       verifications: {
         Row: {
@@ -726,6 +855,16 @@ export type Database = {
         Args: { lat1: number; lat2: number; lng1: number; lng2: number }
         Returns: number
       }
+      _log_event: {
+        Args: {
+          p_actor: string
+          p_match: string
+          p_props: Json
+          p_target: string
+          p_type: string
+        }
+        Returns: undefined
+      }
       cancel_date: { Args: { p_match_id: string }; Returns: Json }
       compute_daily_stats: { Args: { p_date: string }; Returns: undefined }
       get_approved_photo_paths: {
@@ -746,6 +885,14 @@ export type Database = {
       is_match_blocked: { Args: { target_match: string }; Returns: boolean }
       is_match_participant: { Args: { target_match: string }; Returns: boolean }
       is_photo_approved: { Args: { p_path: string }; Returns: boolean }
+      log_user_event: {
+        Args: {
+          p_event_type: string
+          p_props?: Json
+          p_target_user_id?: string
+        }
+        Returns: undefined
+      }
       propose_date_slot: {
         Args: { p_area: string; p_match_id: string; p_slot: Json }
         Returns: Json

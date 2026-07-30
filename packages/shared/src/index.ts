@@ -9,5 +9,5 @@ export * from './like_rules';
 export * from './like_visibility';
 export * from './payment-provider';
 export * from './prefecture_capitals';
-export type { Database } from './types/database';
+export type { Database, Json } from './types/database';
 export * from './value_tags';

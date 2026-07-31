@@ -36,6 +36,11 @@ export async function actionAndSuspend(formData: FormData) {
     .update({ status: 'suspended' })
     .eq('id', reported);
   if (suspendError) throw new Error(`凍結に失敗しました: ${suspendError.message}`);
+  // 発行済みトークンでの継続利用を断つ（M6.6・DB層の遮断に対する補強）
+  const { error: banError } = await supabaseAdmin.auth.admin.updateUserById(reported, {
+    ban_duration: '876000h',
+  });
+  if (banError) throw new Error(`凍結（セッション失効）に失敗しました: ${banError.message}`);
   revalidateReportPages();
 }
 

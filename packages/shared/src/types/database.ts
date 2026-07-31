@@ -865,6 +865,9 @@ export type Database = {
         }
         Returns: undefined
       }
+      _snap_lat: { Args: { p_lat: number }; Returns: number }
+      _snap_lng: { Args: { p_lng: number }; Returns: number }
+      can_caller_message: { Args: never; Returns: boolean }
       cancel_date: { Args: { p_match_id: string }; Returns: Json }
       compute_daily_stats: { Args: { p_date: string }; Returns: undefined }
       get_approved_photo_paths: {
@@ -882,9 +885,11 @@ export type Database = {
         }[]
       }
       is_blocked_between: { Args: { a: string; b: string }; Returns: boolean }
+      is_caller_active: { Args: never; Returns: boolean }
       is_match_blocked: { Args: { target_match: string }; Returns: boolean }
       is_match_participant: { Args: { target_match: string }; Returns: boolean }
       is_photo_approved: { Args: { p_path: string }; Returns: boolean }
+      is_photo_visible_to: { Args: { p_path: string }; Returns: boolean }
       log_user_event: {
         Args: {
           p_event_type: string

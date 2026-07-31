@@ -43,15 +43,17 @@
 
 | # | やること | 時期 |
 |---|---|---|
-| 13 | **全テーブルのTRUNCATE権限の剥奪**（下記注記） | 早めが望ましい |
+| 13 | ~~全テーブルのTRUNCATE権限の剥奪~~ | ✅ **完了（2026-07-30）** |
 | 14 | discoverのインデックス追加・文字列カラムのenum化 | 会員増加後 |
 | 15 | いいねのレートリミット | 会員増加後 |
 | 16 | CIでのRLS自動チェック | CI整備時 |
 
-**#13の注記**: ログイン中のユーザーが全テーブルに対して TRUNCATE（一括削除）権限を持っている。
-PostgREST経由では TRUNCATE を実行する手段が無いため実害の可能性は低く、M6.6で追加したテーブル
-（user_events / 各マスタ）だけは剥奪済み。残りも `revoke truncate ... from anon, authenticated;`
-の1行で塞げる。
+**#13の記録（完了）**: Supabaseの既定権限により anon・authenticated が全テーブルに
+TRUNCATE / REFERENCES / TRIGGER を持っていた（TRUNCATEはRLSを迂回する）。
+migration `20260730110000_revoke_truncate.sql` で①既存の全テーブルから剥奪
+②今後作るテーブルにも付かないよう既定権限を変更。
+検証: 全16テーブルで TRUNCATE=false・SELECT等の必要権限は不変・新規作成テーブルにも付かないことを実測。
+攻撃再現テスト15項目・Vitest 72件とも合格（回帰なし）。
 
 ---
 

@@ -6,6 +6,12 @@
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["-F", "mobile", "exec", "expo", "start", "--web", "--port", "8081"],
       "port": 8081
+    },
+    {
+      "name": "hapimari-admin",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["-F", "admin", "dev"],
+      "port": 3000
     }
   ]
 }

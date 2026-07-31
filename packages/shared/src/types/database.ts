@@ -52,6 +52,24 @@ export type Database = {
         }
         Relationships: []
       }
+      block_carryover: {
+        Row: {
+          blocked_hash: string
+          blocker_hash: string
+          created_at: string
+        }
+        Insert: {
+          blocked_hash: string
+          blocker_hash: string
+          created_at?: string
+        }
+        Update: {
+          blocked_hash?: string
+          blocker_hash?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
       blocks: {
         Row: {
           blocked: string
@@ -232,6 +250,27 @@ export type Database = {
           },
         ]
       }
+      file_deletion_queue: {
+        Row: {
+          bucket_id: string
+          deleted_at: string | null
+          enqueued_at: string
+          path: string
+        }
+        Insert: {
+          bucket_id: string
+          deleted_at?: string | null
+          enqueued_at?: string
+          path: string
+        }
+        Update: {
+          bucket_id?: string
+          deleted_at?: string | null
+          enqueued_at?: string
+          path?: string
+        }
+        Relationships: []
+      }
       fraud_words: {
         Row: {
           word: string
@@ -241,6 +280,39 @@ export type Database = {
         }
         Update: {
           word?: string
+        }
+        Relationships: []
+      }
+      identity_ledger: {
+        Row: {
+          ban_reason: string | null
+          banned: boolean
+          email_hash: string
+          last_withdrawn_at: string | null
+          report_count: number
+          suppressed: boolean
+          updated_at: string
+          withdrawal_count: number
+        }
+        Insert: {
+          ban_reason?: string | null
+          banned?: boolean
+          email_hash: string
+          last_withdrawn_at?: string | null
+          report_count?: number
+          suppressed?: boolean
+          updated_at?: string
+          withdrawal_count?: number
+        }
+        Update: {
+          ban_reason?: string | null
+          banned?: boolean
+          email_hash?: string
+          last_withdrawn_at?: string | null
+          report_count?: number
+          suppressed?: boolean
+          updated_at?: string
+          withdrawal_count?: number
         }
         Relationships: []
       }
@@ -476,8 +548,11 @@ export type Database = {
       }
       profiles: {
         Row: {
+          age_band: string | null
+          anonymized_at: string | null
           available_times: string[] | null
           bio: string | null
+          bio_features: Json | null
           birth_date: string
           children_living_together: boolean | null
           city: string | null
@@ -496,6 +571,8 @@ export type Database = {
           ok_child_date: boolean | null
           photo_urls: string[] | null
           prefecture: string
+          prior_report_count: number
+          region_block: string | null
           single_cert_verified: boolean
           status: string
           subscription_active: boolean
@@ -503,10 +580,14 @@ export type Database = {
           understands_remarriage: boolean
           value_tags: string[]
           voice_profile_url: string | null
+          withdrawn_at: string | null
         }
         Insert: {
+          age_band?: string | null
+          anonymized_at?: string | null
           available_times?: string[] | null
           bio?: string | null
+          bio_features?: Json | null
           birth_date: string
           children_living_together?: boolean | null
           city?: string | null
@@ -525,6 +606,8 @@ export type Database = {
           ok_child_date?: boolean | null
           photo_urls?: string[] | null
           prefecture: string
+          prior_report_count?: number
+          region_block?: string | null
           single_cert_verified?: boolean
           status?: string
           subscription_active?: boolean
@@ -532,10 +615,14 @@ export type Database = {
           understands_remarriage?: boolean
           value_tags?: string[]
           voice_profile_url?: string | null
+          withdrawn_at?: string | null
         }
         Update: {
+          age_band?: string | null
+          anonymized_at?: string | null
           available_times?: string[] | null
           bio?: string | null
+          bio_features?: Json | null
           birth_date?: string
           children_living_together?: boolean | null
           city?: string | null
@@ -554,6 +641,8 @@ export type Database = {
           ok_child_date?: boolean | null
           photo_urls?: string[] | null
           prefecture?: string
+          prior_report_count?: number
+          region_block?: string | null
           single_cert_verified?: boolean
           status?: string
           subscription_active?: boolean
@@ -561,6 +650,7 @@ export type Database = {
           understands_remarriage?: boolean
           value_tags?: string[]
           voice_profile_url?: string | null
+          withdrawn_at?: string | null
         }
         Relationships: []
       }
@@ -834,6 +924,8 @@ export type Database = {
       }
     }
     Functions: {
+      _age_band: { Args: { p_birth: string }; Returns: string }
+      _bio_features: { Args: { p_bio: string }; Returns: Json }
       _date_get_match: {
         Args: { p_match_id: string }
         Returns: {
@@ -855,6 +947,8 @@ export type Database = {
         Args: { lat1: number; lat2: number; lng1: number; lng2: number }
         Returns: number
       }
+      _email_hash: { Args: { p_email: string }; Returns: string }
+      _email_hash_of: { Args: { p_user: string }; Returns: string }
       _log_event: {
         Args: {
           p_actor: string
@@ -865,8 +959,18 @@ export type Database = {
         }
         Returns: undefined
       }
+      _record_withdrawal: {
+        Args: { p_banned: boolean; p_reason: string; p_user: string }
+        Returns: undefined
+      }
+      _region_block: { Args: { p_pref: string }; Returns: string }
       _snap_lat: { Args: { p_lat: number }; Returns: number }
       _snap_lng: { Args: { p_lng: number }; Returns: number }
+      anonymize_profile: { Args: { p_user: string }; Returns: undefined }
+      ban_account: {
+        Args: { p_reason: string; p_user: string }
+        Returns: undefined
+      }
       can_caller_message: { Args: never; Returns: boolean }
       cancel_date: { Args: { p_match_id: string }; Returns: Json }
       compute_daily_stats: { Args: { p_date: string }; Returns: undefined }
@@ -877,11 +981,24 @@ export type Database = {
         }[]
       }
       get_date_status: { Args: { p_match_id: string }; Returns: Json }
+      get_pending_file_deletions: {
+        Args: never
+        Returns: {
+          bucket_id: string
+          path: string
+        }[]
+      }
       get_profile_distances: {
         Args: { p_user_ids: string[] }
         Returns: {
           distance_km: number
           user_id: string
+        }[]
+      }
+      get_suppression_list: {
+        Args: never
+        Returns: {
+          email_hash: string
         }[]
       }
       is_blocked_between: { Args: { a: string; b: string }; Returns: boolean }
@@ -896,6 +1013,10 @@ export type Database = {
           p_props?: Json
           p_target_user_id?: string
         }
+        Returns: undefined
+      }
+      mark_file_deleted: {
+        Args: { p_bucket: string; p_path: string }
         Returns: undefined
       }
       propose_date_slot: {
@@ -925,6 +1046,7 @@ export type Database = {
             }
             Returns: undefined
           }
+      run_retention_job: { Args: never; Returns: Json }
       set_date_intent: {
         Args: { p_intent: boolean; p_match_id: string }
         Returns: Json

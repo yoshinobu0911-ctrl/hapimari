@@ -15,6 +15,7 @@ const NAV_ITEMS = [
   { href: '/users', label: 'ユーザー検索・凍結' },
   { href: '/flagged', label: 'flaggedメッセージ' },
   { href: '/transparency', label: '透明性レポート' },
+  { href: '/retention', label: 'データ保持ジョブ' },
 ];
 
 export default function RootLayout({

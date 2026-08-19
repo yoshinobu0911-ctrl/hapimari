@@ -1,5 +1,6 @@
+import { useState } from 'react';
 import { StyleSheet, Text, TextInput, type TextInputProps, View } from 'react-native';
-import { colors, fontSize, sizes, spacing } from '@/constants/theme';
+import { colors, fontSize, radius, sizes, spacing, typography } from '@/constants/theme';
 
 interface Props extends TextInputProps {
   label?: string;
@@ -8,7 +9,24 @@ interface Props extends TextInputProps {
   error?: string | null;
 }
 
-export function AppTextField({ label, required, hint, error, style, ...inputProps }: Props) {
+/**
+ * 入力欄。
+ * v2 でフォーカス状態とエラー状態の枠線を追加した。
+ * v1 は状態に関わらず同じ薄い枠線で、どこに入力しているのか・
+ * どこでエラーが起きているのかが枠線から読み取れなかった。
+ */
+export function AppTextField({
+  label,
+  required,
+  hint,
+  error,
+  style,
+  onFocus,
+  onBlur,
+  ...inputProps
+}: Props) {
+  const [focused, setFocused] = useState(false);
+
   return (
     <View style={styles.container}>
       {label ? (
@@ -18,9 +36,23 @@ export function AppTextField({ label, required, hint, error, style, ...inputProp
         </Text>
       ) : null}
       <TextInput
-        placeholderTextColor={colors.textSub}
-        style={[styles.input, inputProps.multiline && styles.multiline, style]}
+        placeholderTextColor={colors.textMuted}
+        style={[
+          styles.input,
+          inputProps.multiline && styles.multiline,
+          focused && styles.inputFocused,
+          error ? styles.inputError : null,
+          style,
+        ]}
         accessibilityLabel={label}
+        onFocus={(e) => {
+          setFocused(true);
+          onFocus?.(e);
+        }}
+        onBlur={(e) => {
+          setFocused(false);
+          onBlur?.(e);
+        }}
         {...inputProps}
       />
       {hint ? <Text style={styles.hint}>{hint}</Text> : null}
@@ -31,12 +63,10 @@ export function AppTextField({ label, required, hint, error, style, ...inputProp
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: spacing.md,
+    marginBottom: spacing.lg,
   },
   label: {
-    fontSize: fontSize.label,
-    fontWeight: '600',
-    color: colors.text,
+    ...typography.label,
     marginBottom: spacing.sm,
   },
   required: {
@@ -47,11 +77,19 @@ const styles = StyleSheet.create({
     minHeight: sizes.inputHeight,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: sizes.radius,
+    borderRadius: radius.md,
     paddingHorizontal: spacing.md,
     fontSize: fontSize.body,
     color: colors.text,
     backgroundColor: colors.background,
+  },
+  inputFocused: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primarySubtle,
+  },
+  inputError: {
+    borderColor: colors.danger,
+    backgroundColor: colors.dangerSoft,
   },
   multiline: {
     minHeight: 120,
@@ -59,14 +97,13 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
   },
   hint: {
-    fontSize: fontSize.small,
-    color: colors.textSub,
+    ...typography.caption,
     marginTop: spacing.xs,
   },
   error: {
-    fontSize: fontSize.small,
+    ...typography.caption,
     color: colors.danger,
-    marginTop: spacing.xs,
     fontWeight: '600',
+    marginTop: spacing.xs,
   },
 });

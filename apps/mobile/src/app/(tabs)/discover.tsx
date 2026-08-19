@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import {
   type CompatibilityInput,
   calcCompatibility,
@@ -8,10 +9,12 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef } from 'react';
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ProfileCard } from '@/components/profile-card';
-import { colors, fontSize, sizes, spacing } from '@/constants/theme';
+import { EmptyState } from '@/components/ui/empty-state';
+import { SkeletonCard } from '@/components/ui/skeleton';
+import { colors, radius, sizes, spacing, typography } from '@/constants/theme';
 import { useMyProfile } from '@/hooks/use-my-profile';
 import { fetchDiscoverProfiles } from '@/lib/discover-query';
 import { syncMyLocation } from '@/lib/location';
@@ -107,6 +110,11 @@ export default function Discover() {
           onPress={() => router.push('/modal/filter')}
           style={[styles.filterButton, activeCount > 0 && styles.filterButtonActive]}
         >
+          <Ionicons
+            name="options-outline"
+            size={sizes.iconSm}
+            color={activeCount > 0 ? colors.textOnPrimary : colors.primary}
+          />
           <Text style={[styles.filterButtonText, activeCount > 0 && styles.filterButtonTextActive]}>
             {activeCount > 0 ? `絞り込み中(${activeCount})` : '絞り込み'}
           </Text>
@@ -157,13 +165,24 @@ export default function Discover() {
       </View>
 
       {query.isPending ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={colors.primary} />
+        // 素のスピナーだと「何が出てくるのか」が分からないため、
+        // 実際のグリッドと同じ形の骨組みを見せる（designer_brief §2.3-4）
+        <View style={styles.skeletonGrid} testID="discover-loading">
+          {[0, 1, 2, 3].map((i) => (
+            <View key={i} style={styles.skeletonCell}>
+              <SkeletonCard />
+            </View>
+          ))}
         </View>
       ) : query.isError ? (
-        <View style={styles.center}>
-          <Text style={styles.empty}>読み込みに失敗しました。時間をおいてお試しください。</Text>
-        </View>
+        <EmptyState
+          testID="discover-error"
+          icon="cloud-offline-outline"
+          title="読み込めませんでした"
+          description="通信の状態をご確認のうえ、もう一度お試しください。"
+          actionLabel="もう一度読み込む"
+          onAction={() => query.refetch()}
+        />
       ) : (
         <FlatList
           testID="discover-list"
@@ -174,12 +193,14 @@ export default function Discover() {
           onRefresh={() => query.refetch()}
           contentContainerStyle={styles.list}
           ListEmptyComponent={
-            <View style={styles.center}>
-              <Text style={styles.empty}>
-                条件に合うお相手が見つかりませんでした。{'\n'}
-                絞り込みの距離を広げるなど、条件を変えてお試しください。
-              </Text>
-            </View>
+            <EmptyState
+              testID="discover-empty"
+              icon="search-outline"
+              title="条件に合うお相手が見つかりませんでした"
+              description="絞り込みの距離を広げるなど、条件を変えてお試しください。"
+              actionLabel="絞り込みを変更する"
+              onAction={() => router.push('/modal/filter')}
+            />
           }
           renderItem={({ item }) => (
             <ProfileCard
@@ -211,11 +232,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
   },
   title: {
-    fontSize: fontSize.title,
-    fontWeight: '700',
-    color: colors.text,
+    ...typography.title,
   },
   filterButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
     minHeight: sizes.tapArea,
     justifyContent: 'center',
     borderWidth: 1,
@@ -227,9 +249,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
   },
   filterButtonText: {
-    fontSize: fontSize.body,
+    ...typography.bodyStrong,
     color: colors.primary,
-    fontWeight: '600',
   },
   filterButtonTextActive: {
     color: colors.textOnPrimary,
@@ -247,7 +268,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 999,
+    borderRadius: radius.pill,
     paddingHorizontal: spacing.md,
   },
   sortChipOn: {
@@ -258,34 +279,29 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   sortChipText: {
-    fontSize: fontSize.body,
+    ...typography.bodyStrong,
     color: colors.textSub,
-    fontWeight: '600',
   },
   sortChipTextOn: {
     color: colors.primary,
     fontWeight: '700',
   },
   sortChipTextDisabled: {
-    color: colors.disabled,
+    color: colors.disabledText,
   },
   gpsHint: {
-    fontSize: fontSize.small,
-    color: colors.textSub,
+    ...typography.caption,
   },
   list: {
     paddingBottom: spacing.xl,
+    flexGrow: 1,
   },
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: spacing.xl,
+  skeletonGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
   },
-  empty: {
-    fontSize: fontSize.body,
-    color: colors.textSub,
-    textAlign: 'center',
-    lineHeight: 26,
+  skeletonCell: {
+    width: '50%',
+    flexDirection: 'row',
   },
 });

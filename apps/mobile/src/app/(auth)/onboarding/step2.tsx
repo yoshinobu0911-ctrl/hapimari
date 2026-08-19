@@ -5,6 +5,7 @@ import { StyleSheet, Text } from 'react-native';
 import { AppButton } from '@/components/ui/app-button';
 import { ChoiceGroup, MultiChoiceGroup, YesNoChoice } from '@/components/ui/choice-group';
 import { Screen } from '@/components/ui/screen';
+import { StepProgress } from '@/components/ui/step-progress';
 import { colors, fontSize, spacing } from '@/constants/theme';
 import { useOnboardingStore } from '@/stores/onboarding';
 
@@ -39,9 +40,10 @@ export default function Step2() {
 
   return (
     <Screen
-      title="結婚歴・お子さま（2/4）"
+      title="結婚歴・お子さま"
       subtitle="正直にお答えいただくことが、良いご縁につながります。お子さまに関する情報はお相手選びの参考のためだけに使用し、プロフィールには表示されません。"
     >
+      <StepProgress current={2} total={4} />
       <ChoiceGroup
         label="結婚歴"
         required

@@ -4,10 +4,12 @@ import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { AppButton } from '@/components/ui/app-button';
 import { AppTextField } from '@/components/ui/app-text-field';
+import { Banner } from '@/components/ui/banner';
 import { ChoiceGroup } from '@/components/ui/choice-group';
 import { PrefectureField } from '@/components/ui/prefecture-field';
 import { Screen } from '@/components/ui/screen';
-import { colors, fontSize, spacing } from '@/constants/theme';
+import { StepProgress } from '@/components/ui/step-progress';
+import { colors, spacing, typography } from '@/constants/theme';
 import { draftBirthDate, useOnboardingStore } from '@/stores/onboarding';
 
 export default function Step1() {
@@ -45,7 +47,8 @@ export default function Step1() {
   };
 
   return (
-    <Screen title="基本情報（1/4）" subtitle="あなたのことを教えてください。">
+    <Screen title="基本情報" subtitle="あなたのことを教えてください。">
+      <StepProgress current={1} total={4} />
       <AppTextField
         label="ニックネーム"
         required
@@ -116,9 +119,9 @@ export default function Step1() {
         testID="ob-city"
       />
       {error ? (
-        <Text style={styles.error} testID="ob-step1-error">
-          {error}
-        </Text>
+        <View style={styles.error}>
+          <Banner testID="ob-step1-error" tone="danger" title={error} />
+        </View>
       ) : null}
       <AppButton label="次へ" onPress={next} testID="ob-step1-next" />
     </Screen>
@@ -127,9 +130,7 @@ export default function Step1() {
 
 const styles = StyleSheet.create({
   label: {
-    fontSize: fontSize.label,
-    fontWeight: '600',
-    color: colors.text,
+    ...typography.label,
     marginBottom: spacing.sm,
   },
   required: {
@@ -147,10 +148,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   error: {
-    fontSize: fontSize.body,
-    color: colors.danger,
-    fontWeight: '600',
-    marginBottom: spacing.md,
-    lineHeight: 24,
+    marginBottom: spacing.lg,
   },
 });

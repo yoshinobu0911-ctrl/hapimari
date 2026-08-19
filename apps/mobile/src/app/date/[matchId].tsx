@@ -1,11 +1,15 @@
+import { Ionicons } from '@expo/vector-icons';
 import { type DateSlot, generateDateSlots, suggestArea } from '@hapimari/shared';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { AppButton } from '@/components/ui/app-button';
-import { colors, fontSize, sizes, spacing } from '@/constants/theme';
+import { AppHeader } from '@/components/ui/app-header';
+import { Banner } from '@/components/ui/banner';
+import { EmptyState } from '@/components/ui/empty-state';
+import { Skeleton } from '@/components/ui/skeleton';
+import { colors, fontSize, radius, sizes, spacing, typography } from '@/constants/theme';
 import { useMyProfile } from '@/hooks/use-my-profile';
 import { confirmDialog } from '@/lib/confirm';
 import {
@@ -28,8 +32,6 @@ import { useAuthStore } from '@/stores/auth';
  */
 export default function DateConsult() {
   const { matchId } = useLocalSearchParams<{ matchId: string }>();
-  const router = useRouter();
-  const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const session = useAuthStore((s) => s.session);
   const { data: myProfile } = useMyProfile();
@@ -98,28 +100,17 @@ export default function DateConsult() {
     }
   };
 
-  const header = (
-    <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="戻る"
-        testID="date-back"
-        onPress={() => router.back()}
-        style={styles.headerButton}
-      >
-        <Text style={styles.headerButtonText}>← 戻る</Text>
-      </Pressable>
-      <Text style={styles.headerTitle}>デートの相談</Text>
-      <View style={styles.headerButton} />
-    </View>
-  );
+  const header = <AppHeader title="デートの相談" />;
 
   if (matchQuery.isPending || statusQuery.isPending || !myProfile) {
     return (
       <View style={styles.container}>
         {header}
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={colors.primary} />
+        <View style={styles.loading} testID="date-loading">
+          <Skeleton width="80%" height={30} />
+          <Skeleton width="100%" height={22} />
+          <Skeleton width="65%" height={22} />
+          <Skeleton width="100%" height={sizes.buttonHeight} />
         </View>
       </View>
     );
@@ -129,9 +120,12 @@ export default function DateConsult() {
     return (
       <View style={styles.container}>
         {header}
-        <View style={styles.center}>
-          <Text style={styles.note}>この画面は表示できません。</Text>
-        </View>
+        <EmptyState
+          testID="date-unavailable"
+          icon="calendar-outline"
+          title="この画面は表示できません"
+          description="マッチが解除されたか、お相手が退会した可能性があります。"
+        />
       </View>
     );
   }
@@ -212,7 +206,10 @@ export default function DateConsult() {
   } else if (s.status === 'matched') {
     body = (
       <>
-        <Text style={styles.question}>🎉 お二人の「会ってみたい」が一致しました</Text>
+        <View style={styles.questionRow}>
+          <Ionicons name="sparkles" size={sizes.icon} color={colors.primary} />
+          <Text style={styles.question}>お二人の「会ってみたい」が一致しました</Text>
+        </View>
         <Text style={styles.note}>
           ご都合のよい日程を1つ選んで、{partnerName}に提案してみましょう。
           {area ? `\n待ち合わせは「${area}」がおすすめです。` : ''}
@@ -230,10 +227,12 @@ export default function DateConsult() {
                 onPress={() => setSelectedSlot(slot)}
                 style={[styles.slot, on && styles.slotOn]}
               >
-                <Text style={[styles.slotText, on && styles.slotTextOn]}>
-                  {on ? '● ' : '○ '}
-                  {slot.label}
-                </Text>
+                <Ionicons
+                  name={on ? 'radio-button-on' : 'radio-button-off'}
+                  size={sizes.icon}
+                  color={on ? colors.primary : colors.textMuted}
+                />
+                <Text style={[styles.slotText, on && styles.slotTextOn]}>{slot.label}</Text>
               </Pressable>
             );
           })}
@@ -343,17 +342,23 @@ export default function DateConsult() {
   } else if (s.status === 'confirmed' && s.confirmed_slot) {
     body = (
       <>
-        <Text style={styles.question}>📅 デートが決まっています</Text>
+        <View style={styles.questionRow}>
+          <Ionicons name="calendar" size={sizes.icon} color={colors.primary} />
+          <Text style={styles.question}>デートが決まっています</Text>
+        </View>
         <View style={styles.confirmedBox}>
           <Text style={styles.confirmedText}>{s.confirmed_slot.label}</Text>
           {s.area_suggestion ? (
             <Text style={styles.confirmedArea}>待ち合わせの目安: {s.area_suggestion}</Text>
           ) : null}
         </View>
-        <Text style={styles.note}>
-          はじめて会うときは、昼間の人が多い場所がおすすめです。{'\n'}
-          金銭や投資の話が出た場合は、会うのをやめて運営への通報をご検討ください。
-        </Text>
+        <View style={styles.safetyBanner}>
+          <Banner
+            tone="warning"
+            title="はじめて会うときは、昼間の人が多い場所がおすすめです"
+            description="金銭や投資の話が出た場合は、会うのをやめて運営への通報をご検討ください。"
+          />
+        </View>
         <View style={styles.actions}>
           <AppButton
             label="予定を取りやめる"
@@ -381,9 +386,9 @@ export default function DateConsult() {
       <ScrollView contentContainerStyle={styles.scroll} testID="date-screen">
         {body}
         {error ? (
-          <Text style={styles.error} testID="date-error">
-            {error}
-          </Text>
+          <View style={styles.error}>
+            <Banner testID="date-error" tone="danger" title={error} />
+          </View>
         ) : null}
       </ScrollView>
     </View>
@@ -395,51 +400,29 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.md,
-    paddingBottom: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  headerButton: {
-    minWidth: 72,
-    minHeight: sizes.tapArea,
-    justifyContent: 'center',
-  },
-  headerButtonText: {
-    fontSize: fontSize.body,
-    color: colors.primary,
-    fontWeight: '600',
-  },
-  headerTitle: {
-    fontSize: fontSize.heading,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: spacing.lg,
+  loading: {
+    padding: spacing.lg,
+    gap: spacing.lg,
   },
   scroll: {
     padding: spacing.lg,
     paddingBottom: spacing.xl * 2,
+    flexGrow: 1,
+  },
+  questionRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+    marginBottom: spacing.md,
   },
   question: {
-    fontSize: fontSize.title,
-    fontWeight: '700',
-    color: colors.text,
-    lineHeight: 34,
+    ...typography.title,
+    flex: 1,
     marginBottom: spacing.md,
   },
   note: {
-    fontSize: fontSize.body,
+    ...typography.body,
     color: colors.textSub,
-    lineHeight: 26,
     marginBottom: spacing.md,
   },
   bold: {
@@ -448,55 +431,57 @@ const styles = StyleSheet.create({
   },
   actions: {
     gap: spacing.md,
-    marginTop: spacing.md,
+    marginTop: spacing.lg,
   },
   slots: {
     gap: spacing.sm,
     marginTop: spacing.sm,
   },
   slot: {
-    minHeight: sizes.tapArea + 8,
-    justifyContent: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    minHeight: sizes.tapArea + spacing.sm,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: sizes.radius,
+    borderRadius: radius.md,
     paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
   },
   slotOn: {
     borderColor: colors.primary,
-    borderWidth: 2,
     backgroundColor: colors.primarySoft,
   },
   slotText: {
-    fontSize: fontSize.body + 2,
+    fontSize: fontSize.button,
+    lineHeight: 26,
     color: colors.text,
+    flex: 1,
   },
   slotTextOn: {
     color: colors.primary,
     fontWeight: '700',
   },
   confirmedBox: {
-    borderWidth: 2,
-    borderColor: colors.primary,
-    borderRadius: sizes.radius,
-    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.primaryBorder,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
     marginBottom: spacing.md,
     backgroundColor: colors.primarySoft,
+    gap: spacing.xs,
   },
   confirmedText: {
-    fontSize: fontSize.heading,
-    fontWeight: '700',
-    color: colors.text,
+    ...typography.headingLg,
+    color: colors.primary,
   },
   confirmedArea: {
-    fontSize: fontSize.body,
-    color: colors.textSub,
-    marginTop: spacing.xs,
+    ...typography.caption,
+  },
+  safetyBanner: {
+    marginBottom: spacing.md,
   },
   error: {
-    fontSize: fontSize.body,
-    color: colors.danger,
-    fontWeight: '600',
-    marginTop: spacing.md,
+    marginTop: spacing.lg,
   },
 });

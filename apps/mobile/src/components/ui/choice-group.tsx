@@ -1,5 +1,24 @@
+import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors, fontSize, sizes, spacing } from '@/constants/theme';
+import { colors, radius, sizes, spacing, typography } from '@/constants/theme';
+
+/**
+ * 選択状態の目印。
+ * v1 は「●」「○」「☑」「☐」の文字を本文と同じ行に混ぜていたため、
+ * 端末のフォント次第で大きさも縦位置も揃わなかった。アイコンに置き換えている。
+ */
+function Mark({ selected, multi }: { selected: boolean; multi?: boolean }) {
+  const name = multi
+    ? selected
+      ? 'checkbox'
+      : 'square-outline'
+    : selected
+      ? 'radio-button-on'
+      : 'radio-button-off';
+  return (
+    <Ionicons name={name} size={sizes.icon} color={selected ? colors.primary : colors.textMuted} />
+  );
+}
 
 export interface ChoiceOption<T extends string> {
   value: T;
@@ -42,8 +61,8 @@ export function ChoiceGroup<T extends string>({
               onPress={() => onChange(opt.value)}
               style={[styles.option, selected && styles.optionSelected]}
             >
+              <Mark selected={selected} />
               <Text style={[styles.optionLabel, selected && styles.optionLabelSelected]}>
-                {selected ? '● ' : '○ '}
                 {opt.label}
               </Text>
             </Pressable>
@@ -86,8 +105,8 @@ export function MultiChoiceGroup<T extends string>({
               onPress={() => toggle(opt.value)}
               style={[styles.option, selected && styles.optionSelected]}
             >
+              <Mark selected={selected} multi />
               <Text style={[styles.optionLabel, selected && styles.optionLabelSelected]}>
-                {selected ? '☑ ' : '☐ '}
                 {opt.label}
               </Text>
             </Pressable>
@@ -126,12 +145,10 @@ export function YesNoChoice({
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: spacing.md,
+    marginBottom: spacing.lg,
   },
   label: {
-    fontSize: fontSize.label,
-    fontWeight: '600',
-    color: colors.text,
+    ...typography.label,
     marginBottom: spacing.sm,
   },
   required: {
@@ -142,23 +159,25 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   option: {
-    minHeight: sizes.tapArea + 4,
-    justifyContent: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    minHeight: sizes.tapArea + spacing.sm,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: sizes.radius,
+    borderRadius: radius.md,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     backgroundColor: colors.background,
   },
   optionSelected: {
     borderColor: colors.primary,
-    borderWidth: 2,
+    // 未選択と枠線の太さを揃えて、選択時に文字位置がずれないようにする
     backgroundColor: colors.primarySoft,
   },
   optionLabel: {
-    fontSize: fontSize.body,
-    color: colors.text,
+    ...typography.body,
+    flex: 1,
   },
   optionLabelSelected: {
     color: colors.primary,

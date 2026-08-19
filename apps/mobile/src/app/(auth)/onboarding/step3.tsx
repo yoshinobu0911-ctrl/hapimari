@@ -1,13 +1,15 @@
 import { AVAILABLE_TIMES, BIO_MAX_LENGTH, MARRIAGE_INTENTS } from '@hapimari/shared';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { StyleSheet, Text } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { AppButton } from '@/components/ui/app-button';
 import { AppTextField } from '@/components/ui/app-text-field';
+import { Banner } from '@/components/ui/banner';
 import { ChoiceGroup, MultiChoiceGroup } from '@/components/ui/choice-group';
 import { Screen } from '@/components/ui/screen';
+import { StepProgress } from '@/components/ui/step-progress';
 import { ValueTagsSelector } from '@/components/ui/value-tags-selector';
-import { colors, fontSize, spacing } from '@/constants/theme';
+import { colors, spacing, typography } from '@/constants/theme';
 import { useOnboardingStore } from '@/stores/onboarding';
 
 export default function Step3() {
@@ -34,11 +36,21 @@ export default function Step3() {
 
   return (
     <Screen
-      title="価値観（3/4)"
+      title="価値観"
       subtitle="あなたの考えに近いものをお選びください。お相手との相性の判定に使われます。"
     >
+      <StepProgress current={3} total={4} />
       <Text style={styles.sectionTitle}>
         大切にしたい価値観<Text style={styles.required}>（3つ以上・必須）</Text>
+      </Text>
+      {/* 「3つ以上」という条件を満たせているかを、押すたびに確認できるようにする */}
+      <Text
+        style={[styles.counter, draft.valueTags.length >= 3 && styles.counterOk]}
+        testID="ob-tag-counter"
+      >
+        {draft.valueTags.length >= 3
+          ? `${draft.valueTags.length}つ選択中`
+          : `${draft.valueTags.length}つ選択中（あと${3 - draft.valueTags.length}つ）`}
       </Text>
       <ValueTagsSelector values={draft.valueTags} onChange={(v) => draft.set({ valueTags: v })} />
       <ChoiceGroup
@@ -78,7 +90,11 @@ export default function Step3() {
         hint={`${draft.bio.length} / ${BIO_MAX_LENGTH}文字`}
         testID="ob-bio"
       />
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+      {error ? (
+        <View style={styles.error}>
+          <Banner testID="ob-step3-error" tone="danger" title={error} />
+        </View>
+      ) : null}
       <AppButton label="次へ" onPress={next} testID="ob-step3-next" />
     </Screen>
   );
@@ -86,19 +102,22 @@ export default function Step3() {
 
 const styles = StyleSheet.create({
   sectionTitle: {
-    fontSize: fontSize.label,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: spacing.sm,
+    ...typography.label,
+    marginBottom: spacing.xs,
   },
   required: {
     color: colors.primary,
     fontWeight: '400',
   },
-  error: {
-    fontSize: fontSize.body,
-    color: colors.danger,
-    fontWeight: '600',
+  counter: {
+    ...typography.caption,
     marginBottom: spacing.md,
+  },
+  counterOk: {
+    color: colors.success,
+    fontWeight: '600',
+  },
+  error: {
+    marginBottom: spacing.lg,
   },
 });

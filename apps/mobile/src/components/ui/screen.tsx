@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, fontSize, spacing } from '@/constants/theme';
+import { colors, spacing, typography } from '@/constants/theme';
 
 interface Props {
   title?: string;
@@ -61,15 +61,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
   },
   title: {
-    fontSize: fontSize.title,
-    fontWeight: '700',
-    color: colors.text,
+    ...typography.title,
     marginBottom: spacing.sm,
   },
   subtitle: {
-    fontSize: fontSize.body,
+    ...typography.body,
     color: colors.textSub,
     marginBottom: spacing.lg,
-    lineHeight: 24,
   },
 });

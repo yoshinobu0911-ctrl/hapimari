@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { AppButton } from '@/components/ui/app-button';
 import { Screen } from '@/components/ui/screen';
+import { StepProgress } from '@/components/ui/step-progress';
 import { colors, fontSize, sizes, spacing } from '@/constants/theme';
 import { type ProfileInsert, supabase } from '@/lib/supabase';
 import { uploadProfilePhoto } from '@/lib/upload-photo';
@@ -97,9 +98,10 @@ export default function Step4() {
 
   return (
     <Screen
-      title="プロフィール写真（4/4）"
+      title="プロフィール写真"
       subtitle="お顔がわかる写真があると、マッチしやすくなります。あとから追加もできます。"
     >
+      <StepProgress current={4} total={4} />
       <View style={styles.photoArea}>
         {asset ? (
           <Image source={{ uri: asset.uri }} style={styles.photo} contentFit="cover" />

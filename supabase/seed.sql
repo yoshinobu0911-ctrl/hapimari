@@ -232,7 +232,25 @@ update profiles set value_tags = '{hobby_together,hobby_onsen,comm_meet,family_s
 --   ・全員に丸め済み（約1km単位）のおおよそ座標（距離マッチングのデモ用）
 --   年齢構成は新ポジショニング（男性45-65・女性は40前後を厚く）に既に適合しているため変更なし
 -- ============================================================
-update profiles set subscription_active = true where gender = 'male';
+-- M7.1（2026-08-11）で課金の正は subscriptions テーブルへ移行した。
+-- profiles.subscription_active は派生値のため直接更新せず、開発用の契約行を作る
+-- （トリガ trg_sync_subscription_flag がフラグを自動同期する）。
+-- ここで作るIDは Stripe には存在しないダミー。開発・デモ専用で本番には流れない。
+insert into subscriptions (
+  user_id, stripe_customer_id, stripe_subscription_id, plan, status, current_period_end
+)
+select
+  p.id,
+  'seed_cus_' || replace(p.id::text, '-', ''),
+  'seed_sub_' || replace(p.id::text, '-', ''),
+  'male_3m',
+  'active',
+  now() + interval '90 days'
+from profiles p
+where p.gender = 'male'
+on conflict (user_id) do update set
+  status = 'active',
+  current_period_end = excluded.current_period_end;
 
 insert into profile_locations (user_id, loc_lat, loc_lng)
 select v.id, v.lat, v.lng

@@ -385,6 +385,12 @@ deno_version = 2
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
 
+# Stripe Webhook は Stripe から呼ばれるため JWT を持たない。
+# 認証は「Stripe署名の検証」で行う（supabase/functions/stripe-webhook/index.ts）。
+# ※ stripe-checkout / stripe-cancel は既定どおり verify_jwt = true のまま（ログイン必須）。
+[functions.stripe-webhook]
+verify_jwt = false
+
 [analytics]
 enabled = true
 port = 54327

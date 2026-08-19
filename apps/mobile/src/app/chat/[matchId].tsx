@@ -1,9 +1,9 @@
+import { Ionicons } from '@expo/vector-icons';
 import { type CallListener, MESSAGE_BODY_MAX_LENGTH } from '@hapimari/shared';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -15,7 +15,11 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppButton } from '@/components/ui/app-button';
-import { colors, fontSize, sizes, spacing } from '@/constants/theme';
+import { AppHeader, HeaderIconButton } from '@/components/ui/app-header';
+import { Banner } from '@/components/ui/banner';
+import { EmptyState } from '@/components/ui/empty-state';
+import { SkeletonRow } from '@/components/ui/skeleton';
+import { colors, fontSize, radius, sizes, spacing, typography } from '@/constants/theme';
 import { useMyProfile } from '@/hooks/use-my-profile';
 import { mockCallProvider } from '@/lib/call-provider-mock';
 import { confirmDialog } from '@/lib/confirm';
@@ -28,6 +32,8 @@ type MessageRow = {
   match_id: string;
   sender: string;
   body: string;
+  /** user=会員の発言 / system=運営の自動メッセージ（messages.kind 列が正） */
+  kind: string;
   flagged: boolean;
   created_at: string | null;
 };
@@ -36,6 +42,19 @@ function formatTime(iso: string | null): string {
   if (!iso) return '';
   const d = new Date(iso);
   return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
+/**
+ * 運営の自動メッセージの判定は messages.kind 列が正
+ * （20260819110000_m7_2b_message_kind.sql。従来の接頭辞ヒューリスティックを置き換えた）。
+ * 本文にはRPCが付ける接頭辞（🎉 / 📅）が残っており、運営メッセージ用のアイコンと
+ * 重複するため表示からだけ外す。
+ */
+const SYSTEM_MESSAGE_PREFIXES = ['🎉 ', '📅 '] as const;
+
+function stripSystemPrefix(body: string): string {
+  const prefix = SYSTEM_MESSAGE_PREFIXES.find((p) => body.startsWith(p));
+  return prefix ? body.slice(prefix.length) : body;
 }
 
 /**
@@ -196,75 +215,51 @@ export default function Chat() {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="戻る"
-          testID="chat-back"
-          onPress={() => router.back()}
-          style={styles.headerButton}
-        >
-          <Text style={styles.headerButtonText}>← 戻る</Text>
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="お相手のプロフィール"
-          testID="chat-partner"
-          disabled={!partner}
-          onPress={() => partner && router.push(`/profile/${partner.id}`)}
-          style={styles.headerName}
-        >
-          <Text style={styles.headerNameText} numberOfLines={1}>
-            {partner ? partner.nickname : '表示できないユーザー'}
-          </Text>
-        </Pressable>
-        {partner ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="音声通話"
-            testID="chat-call"
-            onPress={() =>
-              confirmDialog(
-                '通話を始める前に',
-                '電話番号・LINEなどの連絡先交換は、十分に信頼できるまでお控えください。金銭・投資の話が出たら通話をやめて、運営への通報をご検討ください。\n（最長15分で自動終了します。モック通話のため音声は流れません）',
-                async () => {
-                  // 着信リスナーを確実に閉じてから通話チャネルへ参加する（同名チャネル競合防止）
-                  await callListenerRef.current?.stop();
+      <AppHeader
+        title={partner ? (partner.nickname ?? '') : '表示できないユーザー'}
+        onTitlePress={partner ? () => router.push(`/profile/${partner.id}`) : undefined}
+        right={
+          partner ? (
+            <View style={styles.headerActions}>
+              <HeaderIconButton
+                name="call-outline"
+                label="音声通話"
+                onPress={() =>
+                  confirmDialog(
+                    '通話を始める前に',
+                    '電話番号・LINEなどの連絡先交換は、十分に信頼できるまでお控えください。金銭・投資の話が出たら通話をやめて、運営への通報をご検討ください。\n（最長15分で自動終了します。モック通話のため音声は流れません）',
+                    async () => {
+                      // 着信リスナーを確実に閉じてから通話チャネルへ参加する（同名チャネル競合防止）
+                      await callListenerRef.current?.stop();
+                      router.push({
+                        pathname: '/call/[matchId]',
+                        params: { matchId: matchId ?? '', role: 'caller' },
+                      });
+                    },
+                  )
+                }
+              />
+              <HeaderIconButton
+                name="ellipsis-horizontal"
+                label="通報・ブロック"
+                onPress={() =>
                   router.push({
-                    pathname: '/call/[matchId]',
-                    params: { matchId: matchId ?? '', role: 'caller' },
-                  });
-                },
-              )
-            }
-            style={styles.headerButton}
-          >
-            <Text style={styles.headerButtonText}>📞</Text>
-          </Pressable>
-        ) : null}
-        {partner ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="通報・ブロック"
-            testID="chat-menu"
-            onPress={() =>
-              router.push({
-                pathname: '/modal/report-block',
-                params: { userId: partner.id, nickname: partner.nickname },
-              })
-            }
-            style={styles.headerButton}
-          >
-            <Text style={styles.headerButtonText}>…</Text>
-          </Pressable>
-        ) : (
-          <View style={styles.headerButton} />
-        )}
-      </View>
+                    pathname: '/modal/report-block',
+                    params: { userId: partner.id, nickname: partner.nickname },
+                  })
+                }
+              />
+            </View>
+          ) : null
+        }
+      />
 
       {incomingCall && partner ? (
         <View style={styles.incomingBanner} testID="incoming-call">
-          <Text style={styles.incomingText}>📞 {partner.nickname}さんから音声通話の着信です</Text>
+          <View style={styles.incomingHead}>
+            <Ionicons name="call" size={sizes.icon} color={colors.success} />
+            <Text style={styles.incomingText}>{partner.nickname}さんから音声通話の着信です</Text>
+          </View>
           <View style={styles.incomingActions}>
             <Pressable
               accessibilityRole="button"
@@ -300,33 +295,50 @@ export default function Chat() {
       ) : null}
 
       {showDateFeature && match ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="デートの相談"
-          testID="date-banner"
-          onPress={() => router.push(`/date/${matchId}`)}
-          style={({ pressed }) => [styles.dateBanner, pressed && { opacity: 0.85 }]}
-        >
-          <Text style={styles.dateBannerText} numberOfLines={2}>
-            {dateStatus?.status === 'confirmed' && dateStatus.can_feedback
-              ? '昨日のデートはいかがでしたか？ ひとことお聞かせください →'
-              : dateStatus?.status === 'confirmed' && dateStatus.confirmed_slot
-                ? `📅 デートが決まっています: ${dateStatus.confirmed_slot.label} →`
-                : dateStatus?.my_intent === false
-                  ? '気が向いたら「デートの相談」からどうぞ →'
-                  : '💐 そろそろ会ってみませんか？ デートの相談へ →'}
-          </Text>
-        </Pressable>
+        <View style={styles.dateBanner}>
+          {/*
+            v1 は矢印まで含めて1つのテキストにしていたため、文言が長いと
+            「→」だけが2行目に落ちて崩れていた。矢印は Banner 側が右端に固定して描く。
+          */}
+          <Banner
+            testID="date-banner"
+            tone="primary"
+            title={
+              dateStatus?.status === 'confirmed' && dateStatus.can_feedback
+                ? '昨日のデートはいかがでしたか？'
+                : dateStatus?.status === 'confirmed' && dateStatus.confirmed_slot
+                  ? 'デートが決まっています'
+                  : dateStatus?.my_intent === false
+                    ? '気が向いたら「デートの相談」からどうぞ'
+                    : 'そろそろ会ってみませんか？'
+            }
+            description={
+              dateStatus?.status === 'confirmed' && dateStatus.can_feedback
+                ? 'ひとことお聞かせください'
+                : dateStatus?.status === 'confirmed' && dateStatus.confirmed_slot
+                  ? (dateStatus.confirmed_slot.label ?? undefined)
+                  : dateStatus?.my_intent === false
+                    ? undefined
+                    : 'デートの相談へ進めます'
+            }
+            onPress={() => router.push(`/date/${matchId}`)}
+          />
+        </View>
       ) : null}
 
       {messagesQuery.isPending || matchQuery.isPending ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={colors.primary} />
+        <View testID="chat-loading">
+          <SkeletonRow />
+          <SkeletonRow />
+          <SkeletonRow />
         </View>
       ) : !match ? (
-        <View style={styles.center}>
-          <Text style={styles.emptyText}>このトークは表示できません。</Text>
-        </View>
+        <EmptyState
+          testID="chat-unavailable"
+          icon="lock-closed-outline"
+          title="このトークは表示できません"
+          description="お相手が退会したか、ブロックされた可能性があります。"
+        />
       ) : (
         <ScrollView
           ref={scrollRef}
@@ -335,31 +347,63 @@ export default function Chat() {
           testID="chat-messages"
         >
           {messages.length === 0 ? (
-            <Text style={styles.emptyText}>
-              マッチが成立しました。{'\n'}最初のメッセージを送ってみましょう。
-            </Text>
+            <EmptyState
+              testID="chat-empty"
+              icon="hand-left-outline"
+              title="マッチが成立しました"
+              description="最初のメッセージを送ってみましょう。"
+            />
           ) : null}
-          {messages.map((msg) => {
+          {messages.map((msg, index) => {
             const mine = msg.sender === myId;
+            const system = msg.kind === 'system';
+            const time = formatTime(msg.created_at);
+            // 同じ人・同じ分の連続発言では時刻を最後の1件にだけ出す
+            const next = messages[index + 1];
+            const showTime =
+              !next || next.sender !== msg.sender || formatTime(next.created_at) !== time;
+
+            if (system) {
+              return (
+                <View key={msg.id} style={styles.systemRow} testID="chat-system-message">
+                  <View style={styles.systemBubble}>
+                    <Ionicons
+                      name="information-circle-outline"
+                      size={sizes.iconSm}
+                      color={colors.info}
+                    />
+                    <Text style={styles.systemText}>{stripSystemPrefix(msg.body)}</Text>
+                  </View>
+                  {showTime ? <Text style={styles.systemTime}>{time}</Text> : null}
+                </View>
+              );
+            }
+
             return (
               <View key={msg.id}>
                 <View style={[styles.bubbleRow, mine ? styles.bubbleRowMine : null]}>
-                  <View style={[styles.bubble, mine ? styles.bubbleMine : styles.bubbleTheirs]}>
-                    <Text style={[styles.bubbleText, mine && styles.bubbleTextMine]}>
-                      {msg.body}
-                    </Text>
+                  <View style={styles.bubbleColumn}>
+                    <View style={[styles.bubble, mine ? styles.bubbleMine : styles.bubbleTheirs]}>
+                      <Text style={[styles.bubbleText, mine && styles.bubbleTextMine]}>
+                        {msg.body}
+                      </Text>
+                    </View>
+                    {showTime ? (
+                      <Text style={[styles.bubbleTime, mine ? styles.bubbleTimeMine : null]}>
+                        {time}
+                      </Text>
+                    ) : null}
                   </View>
                 </View>
-                <Text style={[styles.bubbleTime, mine ? styles.bubbleTimeMine : null]}>
-                  {formatTime(msg.created_at)}
-                </Text>
                 {/* R8: 受信したメッセージが flagged の場合のみ警告（送信者自身には出さない） */}
                 {msg.flagged && !mine ? (
-                  <View style={styles.fraudBanner} testID="fraud-banner">
-                    <Text style={styles.fraudBannerText}>
-                      ⚠
-                      金銭・投資などの話題にご注意ください。お金の話が出たら、運営への通報をご検討ください。
-                    </Text>
+                  <View style={styles.fraudBanner}>
+                    <Banner
+                      testID="fraud-banner"
+                      tone="warning"
+                      title="金銭・投資などの話題にご注意ください"
+                      description="お金の話が出たら、運営への通報をご検討ください。"
+                    />
                     {partner ? (
                       <Pressable
                         accessibilityRole="button"
@@ -371,6 +415,7 @@ export default function Chat() {
                             params: { userId: partner.id, nickname: partner.nickname },
                           })
                         }
+                        style={styles.fraudReportButton}
                       >
                         <Text style={styles.fraudReportLink}>通報する</Text>
                       </Pressable>
@@ -419,11 +464,13 @@ export default function Chat() {
               testID="chat-send"
               disabled={sending || draft.trim().length === 0}
               onPress={send}
-              style={[
+              style={({ pressed }) => [
                 styles.sendButton,
+                pressed && { backgroundColor: colors.primaryPressed },
                 (sending || draft.trim().length === 0) && { backgroundColor: colors.disabled },
               ]}
             >
+              <Ionicons name="send" size={sizes.iconSm} color={colors.textOnPrimary} />
               <Text style={styles.sendButtonText}>送信</Text>
             </Pressable>
           </View>
@@ -447,69 +494,30 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  header: {
+  headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.md,
-    paddingBottom: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    gap: spacing.sm,
-  },
-  headerButton: {
-    minHeight: sizes.tapArea,
-    minWidth: sizes.tapArea,
-    justifyContent: 'center',
-  },
-  headerButtonText: {
-    fontSize: fontSize.heading,
-    color: colors.primary,
-    fontWeight: '600',
-  },
-  headerName: {
-    flex: 1,
-    minHeight: sizes.tapArea,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerNameText: {
-    fontSize: fontSize.heading,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: spacing.lg,
   },
   dateBanner: {
-    backgroundColor: colors.primarySoft,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm + 2,
-    minHeight: sizes.tapArea,
-    justifyContent: 'center',
-  },
-  dateBannerText: {
-    fontSize: fontSize.body,
-    color: colors.primary,
-    fontWeight: '700',
-    lineHeight: 24,
+    paddingTop: spacing.md,
   },
   incomingBanner: {
-    backgroundColor: '#EAF5EA',
+    backgroundColor: colors.successSoft,
     borderBottomWidth: 1,
     borderBottomColor: colors.success,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
     gap: spacing.sm,
   },
+  incomingHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
   incomingText: {
-    fontSize: fontSize.body,
-    color: colors.text,
-    fontWeight: '700',
+    ...typography.bodyStrong,
+    flex: 1,
   },
   incomingActions: {
     flexDirection: 'row',
@@ -518,34 +526,25 @@ const styles = StyleSheet.create({
   acceptButton: {
     minHeight: sizes.tapArea,
     justifyContent: 'center',
-    borderRadius: sizes.radius,
+    borderRadius: radius.md,
     backgroundColor: colors.success,
     paddingHorizontal: spacing.lg,
   },
   acceptText: {
-    fontSize: fontSize.button,
+    ...typography.button,
     color: colors.textOnPrimary,
-    fontWeight: '700',
   },
   declineButton: {
     minHeight: sizes.tapArea,
     justifyContent: 'center',
-    borderRadius: sizes.radius,
+    borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.border,
     paddingHorizontal: spacing.lg,
   },
   declineText: {
-    fontSize: fontSize.button,
+    ...typography.button,
     color: colors.textSub,
-    fontWeight: '600',
-  },
-  emptyText: {
-    fontSize: fontSize.body,
-    color: colors.textSub,
-    textAlign: 'center',
-    lineHeight: 26,
-    paddingVertical: spacing.lg,
   },
   messages: {
     flex: 1,
@@ -553,67 +552,94 @@ const styles = StyleSheet.create({
   messagesContent: {
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
+    flexGrow: 1,
   },
   bubbleRow: {
     flexDirection: 'row',
-    marginTop: spacing.sm,
+    marginTop: spacing.md,
   },
   bubbleRowMine: {
     justifyContent: 'flex-end',
   },
+  /** 吹き出しと時刻を1つの塊にして、時刻が逆側に飛ばないようにする */
+  bubbleColumn: {
+    maxWidth: '82%',
+  },
   bubble: {
-    maxWidth: '80%',
-    borderRadius: sizes.radius + 4,
+    borderRadius: radius.lg,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm + 2,
+    paddingVertical: spacing.sm + spacing.xs,
   },
   bubbleMine: {
     backgroundColor: colors.primary,
+    borderBottomRightRadius: radius.sm,
   },
   bubbleTheirs: {
     backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.borderSubtle,
+    borderBottomLeftRadius: radius.sm,
   },
   bubbleText: {
-    fontSize: fontSize.body,
-    color: colors.text,
-    lineHeight: 24,
+    ...typography.body,
   },
   bubbleTextMine: {
     color: colors.textOnPrimary,
   },
   bubbleTime: {
-    fontSize: 12,
-    color: colors.textSub,
-    marginTop: 2,
+    // 16pt下限（SPEC §2）。v1は12ptで規約違反かつ読めなかった
+    fontSize: fontSize.small,
+    color: colors.textMuted,
+    marginTop: spacing.xs,
   },
   bubbleTimeMine: {
     textAlign: 'right',
   },
-  fraudBanner: {
-    backgroundColor: '#FDF3E7',
+  /** 運営からの自動メッセージ。左右どちらにも寄せず中央に置いて発言と区別する */
+  systemRow: {
+    alignItems: 'center',
+    marginTop: spacing.md,
+  },
+  systemBubble: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.xs,
+    maxWidth: '92%',
+    backgroundColor: colors.infoSoft,
     borderWidth: 1,
-    borderColor: '#E67E22',
-    borderRadius: sizes.radius,
-    padding: spacing.md,
+    borderColor: '#C9DCE8',
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  systemText: {
+    ...typography.caption,
+    color: colors.text,
+    flexShrink: 1,
+  },
+  systemTime: {
+    fontSize: fontSize.small,
+    color: colors.textMuted,
+    marginTop: spacing.xs,
+  },
+  fraudBanner: {
     marginTop: spacing.sm,
     gap: spacing.sm,
   },
-  fraudBannerText: {
-    fontSize: fontSize.body,
-    color: '#8E4B10',
-    lineHeight: 24,
+  fraudReportButton: {
+    minHeight: sizes.tapArea,
+    justifyContent: 'center',
+    alignSelf: 'flex-start',
+    paddingHorizontal: spacing.sm,
   },
   fraudReportLink: {
-    fontSize: fontSize.body,
+    ...typography.bodyStrong,
     color: colors.primary,
-    fontWeight: '700',
     textDecorationLine: 'underline',
   },
   composer: {
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.borderSubtle,
     paddingHorizontal: spacing.md,
     paddingTop: spacing.sm,
     backgroundColor: colors.background,
@@ -629,38 +655,37 @@ const styles = StyleSheet.create({
     maxHeight: 140,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: sizes.radius,
+    borderRadius: radius.md,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm + 2,
+    paddingVertical: spacing.sm + spacing.xs,
     fontSize: fontSize.body,
     color: colors.text,
   },
   sendButton: {
-    height: sizes.inputHeight,
-    borderRadius: sizes.radius,
-    backgroundColor: colors.primary,
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: spacing.xs,
+    height: sizes.inputHeight,
+    borderRadius: radius.md,
+    backgroundColor: colors.primary,
     justifyContent: 'center',
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.md,
   },
   sendButtonText: {
-    fontSize: fontSize.button,
+    ...typography.button,
     color: colors.textOnPrimary,
-    fontWeight: '700',
   },
   verifyPrompt: {
     gap: spacing.sm,
     paddingBottom: spacing.sm,
   },
   verifyPromptText: {
-    fontSize: fontSize.body,
+    ...typography.bodyStrong,
     color: colors.danger,
-    fontWeight: '600',
   },
   sendError: {
-    fontSize: fontSize.body,
+    ...typography.bodyStrong,
     color: colors.danger,
-    fontWeight: '600',
     marginBottom: spacing.sm,
   },
 });

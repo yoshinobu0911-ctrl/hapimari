@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import {
   AVAILABLE_TIMES,
   type CompatibilityInput,
@@ -13,15 +14,19 @@ import {
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { MatchCelebration } from '@/components/match-celebration';
 import { ProfilePhoto } from '@/components/profile-photo';
 import { AppButton } from '@/components/ui/app-button';
+import { AppHeader, HeaderIconButton } from '@/components/ui/app-header';
 import { AppTextField } from '@/components/ui/app-text-field';
-import { colors, fontSize, sizes, spacing } from '@/constants/theme';
+import { Badge } from '@/components/ui/badge';
+import { Chip } from '@/components/ui/chip';
+import { EmptyState } from '@/components/ui/empty-state';
+import { Skeleton } from '@/components/ui/skeleton';
+import { colors, fontSize, radius, sizes, spacing, typography } from '@/constants/theme';
 import { useMyProfile } from '@/hooks/use-my-profile';
 import { logEvent } from '@/lib/analytics';
-import { confirmDialog } from '@/lib/confirm';
 import { fetchDistances } from '@/lib/discover-query';
 import { sendLike } from '@/lib/like-api';
 import { type Profile, type PublicProfile, supabase } from '@/lib/supabase';
@@ -58,7 +63,6 @@ function InfoRow({ label, value }: { label: string; value: string | null | undef
 export default function ProfileDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const session = useAuthStore((s) => s.session);
   const { data: myProfile } = useMyProfile();
@@ -72,6 +76,8 @@ export default function ProfileDetail() {
   const [likeMessage, setLikeMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [likeError, setLikeError] = useState<string | null>(null);
+  /** マッチ成立の演出。null 以外のとき表示（値は成立した matchId） */
+  const [celebratedMatchId, setCelebratedMatchId] = useState<string | null>(null);
 
   const profileQuery = useQuery({
     queryKey: ['profile', id],
@@ -152,52 +158,44 @@ export default function ProfileDetail() {
     }
     invalidate();
     if (result.matched) {
-      confirmDialog(
-        'マッチしました！',
-        `${profile?.nickname ?? 'お相手'}さんとマッチしました。メッセージを送ってみましょう。`,
-        () => {
-          if (result.matchId) router.push(`/chat/${result.matchId}`);
-        },
-      );
+      // マッチ成立の演出（従来はOS標準の confirmDialog だった）。
+      // matchId が無い異常時も演出は出し、「メッセージを送る」は閉じるだけになる
+      setCelebratedMatchId(result.matchId ?? '');
     }
   };
 
   const header = (
-    <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="戻る"
-        testID="profile-back"
-        onPress={() => router.back()}
-        style={styles.headerButton}
-      >
-        <Text style={styles.headerButtonText}>← 戻る</Text>
-      </Pressable>
-      {profile ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="通報・ブロック"
-          testID="profile-menu"
-          onPress={() =>
-            router.push({
-              pathname: '/modal/report-block',
-              params: { userId: profile.id, nickname: profile.nickname },
-            })
-          }
-          style={styles.headerButton}
-        >
-          <Text style={styles.headerButtonText}>…</Text>
-        </Pressable>
-      ) : null}
-    </View>
+    <AppHeader
+      title={profile?.nickname}
+      right={
+        profile ? (
+          <HeaderIconButton
+            name="ellipsis-horizontal"
+            label="通報・ブロック"
+            onPress={() =>
+              router.push({
+                pathname: '/modal/report-block',
+                params: { userId: profile.id, nickname: profile.nickname },
+              })
+            }
+          />
+        ) : null
+      }
+    />
   );
 
   if (profileQuery.isPending) {
     return (
       <View style={styles.container}>
         {header}
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={colors.primary} />
+        <View testID="profile-loading">
+          <Skeleton height={360} borderRadius={0} />
+          <View style={styles.loadingBody}>
+            <Skeleton width="55%" height={28} />
+            <Skeleton width="35%" height={22} />
+            <Skeleton width="90%" height={20} />
+            <Skeleton width="75%" height={20} />
+          </View>
         </View>
       </View>
     );
@@ -208,12 +206,14 @@ export default function ProfileDetail() {
     return (
       <View style={styles.container}>
         {header}
-        <View style={styles.center}>
-          <Text style={styles.emptyText}>
-            このプロフィールは表示できません。{'\n'}
-            退会またはブロックされたユーザーの可能性があります。
-          </Text>
-        </View>
+        <EmptyState
+          testID="profile-unavailable"
+          icon="person-remove-outline"
+          title="このプロフィールは表示できません"
+          description="退会またはブロックされたユーザーの可能性があります。"
+          actionLabel="さがすに戻る"
+          onAction={() => router.back()}
+        />
       </View>
     );
   }
@@ -259,14 +259,21 @@ export default function ProfileDetail() {
             {profile.nickname}
             <Text style={styles.age}> {profile.age}歳</Text>
           </Text>
-          {shouldShowCompatibility(compatibility) ? (
-            <Text style={styles.compatibility}>相性 {compatibility}%</Text>
-          ) : null}
-          {distanceKm != null ? (
-            <Text style={styles.distance} testID="profile-distance">
-              📍 現在地から {formatDistanceLabel(distanceKm)}
-            </Text>
-          ) : null}
+          <View style={styles.metaRow}>
+            {shouldShowCompatibility(compatibility) ? (
+              <View style={styles.compatibility}>
+                <Text style={styles.compatibilityText}>相性 {compatibility}%</Text>
+              </View>
+            ) : null}
+            {distanceKm != null ? (
+              <View style={styles.distance} testID="profile-distance">
+                <Ionicons name="location-outline" size={sizes.iconSm} color={colors.textSub} />
+                <Text style={styles.distanceText}>
+                  現在地から {formatDistanceLabel(distanceKm)}
+                </Text>
+              </View>
+            ) : null}
+          </View>
           {reasons.length > 0 ? (
             <View style={styles.reasons} testID="profile-reasons">
               {reasons.map((reason) => (
@@ -279,17 +286,13 @@ export default function ProfileDetail() {
 
           {(profile.value_tags ?? []).length > 0 ? (
             <View style={styles.tags}>
-              {(profile.value_tags ?? []).map((tag) => {
-                const common = myTags.has(tag);
-                return (
-                  <View key={tag} style={[styles.tag, common && styles.tagCommon]}>
-                    <Text style={[styles.tagText, common && styles.tagTextCommon]}>
-                      {common ? '◎ ' : ''}
-                      {VALUE_TAG_LABELS[tag] ?? tag}
-                    </Text>
-                  </View>
-                );
-              })}
+              {(profile.value_tags ?? []).map((tag) => (
+                <Chip
+                  key={tag}
+                  label={VALUE_TAG_LABELS[tag] ?? tag}
+                  state={myTags.has(tag) ? 'matched' : 'default'}
+                />
+              ))}
             </View>
           ) : null}
 
@@ -317,10 +320,14 @@ export default function ProfileDetail() {
           {profile.bio ? <Text style={styles.bio}>{profile.bio}</Text> : null}
 
           <View style={styles.badges}>
-            {profile.is_verified ? <Text style={styles.badgeOn}>✓ 本人確認済み</Text> : null}
-            {profile.income_verified ? <Text style={styles.badgeOn}>✓ 収入証明済み</Text> : null}
+            {profile.is_verified ? (
+              <Badge label="本人確認済み" tone="success" icon="shield-checkmark" />
+            ) : null}
+            {profile.income_verified ? (
+              <Badge label="収入証明済み" tone="success" icon="checkmark-circle" />
+            ) : null}
             {profile.single_cert_verified ? (
-              <Text style={styles.badgeOn}>✓ 独身証明済み</Text>
+              <Badge label="独身証明済み" tone="success" icon="checkmark-circle" />
             ) : null}
           </View>
 
@@ -359,6 +366,19 @@ export default function ProfileDetail() {
           )}
         </View>
       </ScrollView>
+
+      <MatchCelebration
+        visible={celebratedMatchId !== null}
+        partnerName={profile?.nickname ?? 'お相手'}
+        partnerPhotoPath={profile?.photo_urls?.[0]}
+        myPhotoPath={myProfile?.photo_urls?.[0]}
+        onOpenChat={() => {
+          const matchId = celebratedMatchId;
+          setCelebratedMatchId(null);
+          if (matchId) router.push(`/chat/${matchId}`);
+        }}
+        onClose={() => setCelebratedMatchId(null)}
+      />
     </View>
   );
 }
@@ -368,42 +388,20 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: spacing.md,
-    paddingBottom: spacing.sm,
-    backgroundColor: colors.background,
-  },
-  headerButton: {
-    minHeight: sizes.tapArea,
-    minWidth: sizes.tapArea,
-    justifyContent: 'center',
-  },
-  headerButtonText: {
-    fontSize: fontSize.heading,
-    color: colors.primary,
-    fontWeight: '600',
-  },
   scroll: {
     paddingBottom: spacing.xl * 2,
   },
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: spacing.lg,
+  loadingBody: {
+    padding: spacing.lg,
+    gap: spacing.md,
   },
-  emptyText: {
-    fontSize: fontSize.body,
-    color: colors.textSub,
-    textAlign: 'center',
-    lineHeight: 26,
-  },
+  /**
+   * v1 は 3:4（幅375なら高さ500px）で、ヘッダーと合わせると
+   * 名前を読むのにスクロールが必要だった。正方形にして最初の画面内に収める。
+   */
   photo: {
     width: '100%',
-    aspectRatio: 3 / 4,
+    aspectRatio: 1,
     backgroundColor: colors.surface,
   },
   photoPlaceholder: {
@@ -411,7 +409,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   photoPlaceholderText: {
-    fontSize: fontSize.body,
+    ...typography.body,
     color: colors.textSub,
   },
   subPhotos: {
@@ -421,113 +419,99 @@ const styles = StyleSheet.create({
   subPhoto: {
     width: 96,
     height: 128,
-    borderRadius: sizes.radius,
+    borderRadius: radius.md,
     marginRight: spacing.sm,
     backgroundColor: colors.surface,
   },
   body: {
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
+    paddingTop: spacing.lg,
   },
   name: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: colors.text,
+    ...typography.title,
   },
   age: {
-    fontSize: 22,
+    fontSize: fontSize.headingLg,
     fontWeight: '500',
+    color: colors.textSub,
+  },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    marginTop: spacing.sm,
   },
   compatibility: {
-    fontSize: 22,
-    fontWeight: '800',
+    backgroundColor: colors.primarySoft,
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
+  compatibilityText: {
+    fontSize: fontSize.heading,
+    fontWeight: '700',
     color: colors.primary,
-    marginTop: spacing.xs,
   },
   distance: {
-    fontSize: fontSize.body,
-    color: colors.textSub,
-    marginTop: spacing.xs,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xxs,
+  },
+  distanceText: {
+    ...typography.caption,
   },
   reasons: {
-    marginTop: spacing.sm,
-    gap: 2,
+    marginTop: spacing.md,
+    padding: spacing.md,
+    backgroundColor: colors.primarySubtle,
+    borderRadius: radius.md,
+    gap: spacing.xs,
   },
   reasonText: {
-    fontSize: fontSize.body,
-    color: colors.text,
-    lineHeight: 24,
+    ...typography.body,
   },
   tags: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.sm,
-    marginTop: spacing.md,
-  },
-  tag: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 999,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs + 2,
-    backgroundColor: colors.surface,
-  },
-  tagCommon: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primarySoft,
-  },
-  tagText: {
-    fontSize: fontSize.body,
-    color: colors.text,
-  },
-  tagTextCommon: {
-    color: colors.primary,
-    fontWeight: '700',
+    marginTop: spacing.lg,
   },
   section: {
-    marginTop: spacing.lg,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
+    marginTop: spacing.xl,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.borderSubtle,
   },
   infoRow: {
     flexDirection: 'row',
-    paddingVertical: spacing.sm + 2,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    paddingVertical: spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.borderSubtle,
     gap: spacing.md,
   },
   infoLabel: {
-    width: 150,
-    fontSize: fontSize.body,
+    width: 140,
+    ...typography.body,
     color: colors.textSub,
   },
   infoValue: {
     flex: 1,
-    fontSize: fontSize.body,
-    color: colors.text,
-    lineHeight: 24,
+    ...typography.body,
   },
   bio: {
-    fontSize: fontSize.body,
-    color: colors.text,
-    lineHeight: 28,
-    marginTop: spacing.lg,
+    ...typography.body,
+    marginTop: spacing.xl,
   },
   badges: {
-    gap: spacing.xs,
-    marginTop: spacing.lg,
-    marginBottom: spacing.lg,
-  },
-  badgeOn: {
-    fontSize: fontSize.body,
-    color: colors.badge,
-    fontWeight: '600',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    marginTop: spacing.xl,
+    marginBottom: spacing.xl,
   },
   likeError: {
-    fontSize: fontSize.body,
+    ...typography.bodyStrong,
     color: colors.danger,
-    fontWeight: '600',
-    lineHeight: 24,
     marginBottom: spacing.sm,
   },
 });

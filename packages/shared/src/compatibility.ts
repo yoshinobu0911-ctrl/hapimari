@@ -124,8 +124,9 @@ export function compatibilityReasons(
 
   const otherTimes = new Set(other.availableTimes);
   const sharedTimes = me.availableTimes.filter((t) => otherTimes.has(t));
-  if (sharedTimes.length > 0) {
-    const label = timeLabels[sharedTimes[0]] ?? sharedTimes[0];
+  const firstSharedTime = sharedTimes[0];
+  if (firstSharedTime) {
+    const label = timeLabels[firstSharedTime] ?? firstSharedTime;
     reasons.push(`会える時間帯が合います（${label}）`);
   }
 

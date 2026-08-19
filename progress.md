@@ -21,6 +21,7 @@
 
 ## 📋 TODO（次にやること）
 <!-- 優先度順。着手→In Progress、完了→Done へ移動。 -->
+- [ ] 【オーナー判断待ち】**音声通話の実装方式**: 調査書 `docs/design/call_research.md`（2026-08-19）。推奨=アプリ内VoIP(Agora)。確認事項3点（通話の課金ゲート/録音方針/Agoraアカウント作成）に回答後、設計提案へ
 - [ ] 【オーナー待ち】**M7.2 の実決済テスト**（Stripeテストキーを `supabase/functions/.env` に設定後、`docs/design/M7_2_payment_ui_design.md` §12 の手順で §11-(7)〜(15)(18) を実施）→ 結果を `docs/acceptance/M7_2.md` §B に記入
 - [ ] 【オーナー待ち】**特商法・規約・ポリシーへのリンクを subscription.tsx に設置**（BYYコーポレートサイトのページ公開後。**公開前必須・法定**。2026-08-19 オーナー判断で保留中）
 - [ ] 【オーナー確認待ち】残り14画面へトークン/共通部品を横展開（signup・login・likes・messages・filter・report-block・profile-edit・blocked・upload・call・step2・step4・index。※subscription は M7.2 で刷新済み・chat/mypage/profile系の演出まわりは実施済み。代表8画面のオーナー確認後に着手）

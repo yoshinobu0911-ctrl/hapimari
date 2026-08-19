@@ -5,7 +5,6 @@ import {
   compatibilityReasons,
   distanceScore,
 } from '../src/compatibility';
-import { SUBSCRIPTION_PLANS } from '../src/payment-provider';
 import { VALUE_TAG_LABELS } from '../src/value_tags';
 
 const base: CompatibilityInput = {
@@ -77,13 +76,5 @@ describe('compatibilityReasons（B4: 共通点の言語化）', () => {
   });
 });
 
-describe('SUBSCRIPTION_PLANS（A1/B5）', () => {
-  it('男性スタンダードは購入可・価格非表示、女性プレミアは将来枠（500円・購入不可）', () => {
-    const male = SUBSCRIPTION_PLANS.find((p) => p.id === 'male_standard');
-    const female = SUBSCRIPTION_PLANS.find((p) => p.id === 'female_premium');
-    expect(male?.available).toBe(true);
-    expect(male?.priceLabel).toContain('正式リリース時に決定');
-    expect(female?.available).toBe(false);
-    expect(female?.priceLabel).toContain('500円');
-  });
-});
+// 旧 SUBSCRIPTION_PLANS（モック課金）の検証は M7.2 で削除した。
+// 正式なプラン定義（PAID_PLANS）の検証は subscription-view.test.ts にある。

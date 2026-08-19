@@ -431,6 +431,7 @@ export type Database = {
           created_at: string | null
           flagged: boolean
           id: string
+          kind: string
           match_id: string
           sender: string
         }
@@ -439,6 +440,7 @@ export type Database = {
           created_at?: string | null
           flagged?: boolean
           id?: string
+          kind?: string
           match_id: string
           sender: string
         }
@@ -447,6 +449,7 @@ export type Database = {
           created_at?: string | null
           flagged?: boolean
           id?: string
+          kind?: string
           match_id?: string
           sender?: string
         }
@@ -713,6 +716,75 @@ export type Database = {
           },
         ]
       }
+      stripe_events: {
+        Row: {
+          id: string
+          received_at: string
+          type: string
+        }
+        Insert: {
+          id: string
+          received_at?: string
+          type: string
+        }
+        Update: {
+          id?: string
+          received_at?: string
+          type?: string
+        }
+        Relationships: []
+      }
+      subscriptions: {
+        Row: {
+          cancel_at_period_end: boolean
+          created_at: string
+          current_period_end: string | null
+          plan: string
+          status: string
+          stripe_customer_id: string
+          stripe_subscription_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          cancel_at_period_end?: boolean
+          created_at?: string
+          current_period_end?: string | null
+          plan: string
+          status?: string
+          stripe_customer_id: string
+          stripe_subscription_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          cancel_at_period_end?: boolean
+          created_at?: string
+          current_period_end?: string | null
+          plan?: string
+          status?: string
+          stripe_customer_id?: string
+          stripe_subscription_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscriptions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscriptions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_events: {
         Row: {
           actor_id: string | null
@@ -974,6 +1046,7 @@ export type Database = {
       can_caller_message: { Args: never; Returns: boolean }
       cancel_date: { Args: { p_match_id: string }; Returns: Json }
       compute_daily_stats: { Args: { p_date: string }; Returns: undefined }
+      expire_stale_subscriptions: { Args: never; Returns: number }
       get_approved_photo_paths: {
         Args: { p_paths: string[] }
         Returns: {
@@ -1007,6 +1080,7 @@ export type Database = {
       is_match_participant: { Args: { target_match: string }; Returns: boolean }
       is_photo_approved: { Args: { p_path: string }; Returns: boolean }
       is_photo_visible_to: { Args: { p_path: string }; Returns: boolean }
+      is_subscription_active: { Args: { p_user: string }; Returns: boolean }
       log_user_event: {
         Args: {
           p_event_type: string
@@ -1023,7 +1097,6 @@ export type Database = {
         Args: { p_area: string; p_match_id: string; p_slot: Json }
         Returns: Json
       }
-      purchase_subscription: { Args: { p_plan: string }; Returns: Json }
       register_photo_for_review: {
         Args: { p_path: string }
         Returns: undefined

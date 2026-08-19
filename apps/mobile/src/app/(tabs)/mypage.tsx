@@ -1,11 +1,16 @@
-import { calcAge } from '@hapimari/shared';
+import { calcAge, deriveSubscriptionView, formatJstDate } from '@hapimari/shared';
 import { useRouter } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 import { ProfilePhoto } from '@/components/profile-photo';
 import { AppButton } from '@/components/ui/app-button';
+import { Badge } from '@/components/ui/badge';
+import { Banner } from '@/components/ui/banner';
+import { ListItem } from '@/components/ui/list-item';
 import { Screen } from '@/components/ui/screen';
-import { colors, fontSize, sizes, spacing } from '@/constants/theme';
+import { Section } from '@/components/ui/section';
+import { colors, radius, sizes, spacing, typography } from '@/constants/theme';
 import { useMyProfile } from '@/hooks/use-my-profile';
+import { useMySubscription } from '@/hooks/use-my-subscription';
 import { confirmDialog, infoDialog } from '@/lib/confirm';
 import { supabase } from '@/lib/supabase';
 
@@ -15,11 +20,30 @@ const MARITAL_LABEL: Record<string, string> = {
   widowed: '死別',
 };
 
+/**
+ * マイページ。
+ * v1 は同じ太さの枠線ボタンが5つ縦に並び、「ブロック一覧」と「退会」が同じ重みに見えていた
+ * （SPEC §2「1画面につき主要アクションは1つ」と矛盾）。
+ * v2 では主要アクションを「プロフィールを編集する」1つに絞り、
+ * 残りは設定リストの行に落として視覚的な重みを下げている。
+ */
 export default function MyPage() {
   const router = useRouter();
   const { data: profile } = useMyProfile();
+  const { data: subscription } = useMySubscription();
 
   if (!profile) return null;
+
+  // 有料プランの行は男性のみ（女性は無料のため導線ごと出さない。M7.2 §5.4）
+  const subscriptionView = deriveSubscriptionView(subscription ?? null, Date.now());
+  const subscriptionValue =
+    subscriptionView === 'active'
+      ? `次回更新 ${formatJstDate(subscription?.current_period_end)}`
+      : subscriptionView === 'cancel_scheduled'
+        ? `${formatJstDate(subscription?.current_period_end)}で終了`
+        : subscriptionView === 'payment_trouble'
+          ? 'お支払いの確認が必要'
+          : undefined;
 
   const logout = () => {
     confirmDialog('ログアウト', 'ログアウトしますか？', () => {
@@ -73,64 +97,94 @@ export default function MyPage() {
         </View>
       </View>
 
-      <View style={styles.badges}>
-        <Text style={[styles.badgeItem, profile.is_verified ? styles.badgeOn : styles.badgeOff]}>
-          {profile.is_verified ? '✓ 本人確認済み' : '本人確認 未提出'}
-        </Text>
-        <Text
-          style={[styles.badgeItem, profile.income_verified ? styles.badgeOn : styles.badgeOff]}
-        >
-          {profile.income_verified ? '✓ 収入証明済み' : '収入証明 未提出（任意）'}
-        </Text>
-        <Text
-          style={[
-            styles.badgeItem,
-            profile.single_cert_verified ? styles.badgeOn : styles.badgeOff,
-          ]}
-        >
-          {profile.single_cert_verified ? '✓ 独身証明済み' : '独身証明 未提出（任意）'}
-        </Text>
-      </View>
-      {!profile.is_verified ? (
-        <Text style={styles.verifyNote}>※本人確認が完了するまでメッセージの送信はできません。</Text>
+      <Section title="証明とバッジ">
+        <View style={styles.badges}>
+          <Badge
+            label={profile.is_verified ? '本人確認済み' : '本人確認 未提出'}
+            tone={profile.is_verified ? 'success' : 'neutral'}
+            icon={profile.is_verified ? 'shield-checkmark' : 'shield-outline'}
+          />
+          <Badge
+            label={profile.income_verified ? '収入証明済み' : '収入証明 未提出（任意）'}
+            tone={profile.income_verified ? 'success' : 'neutral'}
+            icon={profile.income_verified ? 'checkmark-circle' : 'ellipse-outline'}
+          />
+          <Badge
+            label={profile.single_cert_verified ? '独身証明済み' : '独身証明 未提出（任意）'}
+            tone={profile.single_cert_verified ? 'success' : 'neutral'}
+            icon={profile.single_cert_verified ? 'checkmark-circle' : 'ellipse-outline'}
+          />
+        </View>
+
+        {!profile.is_verified ? (
+          <View style={styles.banner}>
+            <Banner
+              tone="warning"
+              title="本人確認がまだ完了していません"
+              description="本人確認が完了するまで、メッセージの送信はできません。"
+            />
+          </View>
+        ) : null}
+
+        <View style={styles.verifyButton}>
+          <AppButton
+            label="証明書類を提出する"
+            variant="secondary"
+            size="sm"
+            icon="document-text-outline"
+            onPress={() => router.push('/upload')}
+            testID="mypage-verification"
+          />
+        </View>
+      </Section>
+
+      {profile.bio ? (
+        <Section title="自己紹介">
+          <Text style={styles.bio}>{profile.bio}</Text>
+        </Section>
       ) : null}
-      <View style={styles.verifyButton}>
-        <AppButton
-          label="証明書類を提出する"
-          variant={profile.is_verified ? 'secondary' : 'primary'}
-          onPress={() => router.push('/upload')}
-          testID="mypage-verification"
-        />
-      </View>
 
-      {profile.bio ? <Text style={styles.bio}>{profile.bio}</Text> : null}
-
-      <View style={styles.actions}>
+      {/* この画面の主要アクションはこれ1つ（SPEC §2） */}
+      <View style={styles.primaryAction}>
         <AppButton
           label="プロフィールを編集する"
           onPress={() => router.push('/profile-edit')}
           testID="mypage-edit"
         />
-        <AppButton
-          label="有料プランについて"
-          variant="secondary"
-          onPress={() => router.push('/subscription')}
-          testID="mypage-subscription"
-        />
-        <AppButton
-          label="ブロックしたユーザー"
-          variant="secondary"
-          onPress={() => router.push('/settings/blocked')}
-          testID="mypage-blocked"
-        />
-        <AppButton label="ログアウト" variant="secondary" onPress={logout} testID="mypage-logout" />
-        <AppButton
-          label="退会について"
-          variant="danger-outline"
-          onPress={withdraw}
-          testID="mypage-withdraw"
-        />
       </View>
+
+      <Section title="設定" divided>
+        <View style={styles.list}>
+          {profile.gender === 'male' ? (
+            <ListItem
+              label={subscriptionView === 'none' ? '有料プランについて' : '有料プラン'}
+              value={subscriptionValue}
+              icon="card-outline"
+              onPress={() => router.push('/subscription')}
+              testID="mypage-subscription"
+            />
+          ) : null}
+          <ListItem
+            label="ブロックしたユーザー"
+            icon="ban-outline"
+            onPress={() => router.push('/settings/blocked')}
+            testID="mypage-blocked"
+          />
+          <ListItem
+            label="ログアウト"
+            icon="log-out-outline"
+            onPress={logout}
+            testID="mypage-logout"
+          />
+          <ListItem
+            label="退会について"
+            icon="person-remove-outline"
+            tone="danger"
+            onPress={withdraw}
+            testID="mypage-withdraw"
+          />
+        </View>
+      </Section>
     </Screen>
   );
 }
@@ -138,13 +192,14 @@ export default function MyPage() {
 const styles = StyleSheet.create({
   profileRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     gap: spacing.md,
-    marginBottom: spacing.md,
+    marginBottom: spacing.xl,
   },
   photo: {
-    width: 96,
-    height: 128,
-    borderRadius: sizes.radius,
+    width: sizes.avatarLg,
+    height: sizes.avatarLg,
+    borderRadius: radius.lg,
     backgroundColor: colors.surface,
   },
   photoPlaceholder: {
@@ -154,54 +209,40 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   photoPlaceholderText: {
-    fontSize: fontSize.small,
-    color: colors.textSub,
+    ...typography.caption,
   },
   profileInfo: {
     flex: 1,
     justifyContent: 'center',
-    gap: spacing.xs,
+    gap: spacing.xxs,
   },
   name: {
-    fontSize: fontSize.heading,
-    fontWeight: '700',
-    color: colors.text,
+    ...typography.headingLg,
   },
   meta: {
-    fontSize: fontSize.body,
+    ...typography.body,
     color: colors.textSub,
   },
   badges: {
-    gap: spacing.xs,
-    marginBottom: spacing.sm,
+    gap: spacing.sm,
+    alignItems: 'flex-start',
   },
-  badgeItem: {
-    fontSize: fontSize.body,
-  },
-  badgeOn: {
-    color: colors.badge,
-    fontWeight: '600',
-  },
-  badgeOff: {
-    color: colors.textSub,
-  },
-  verifyNote: {
-    fontSize: fontSize.small,
-    color: colors.danger,
-    lineHeight: 24,
-    marginBottom: spacing.md,
+  banner: {
+    marginTop: spacing.md,
   },
   verifyButton: {
-    marginBottom: spacing.lg,
+    marginTop: spacing.md,
   },
   bio: {
-    fontSize: fontSize.body,
-    color: colors.text,
-    lineHeight: 26,
-    marginBottom: spacing.lg,
+    ...typography.body,
   },
-  actions: {
-    gap: spacing.md,
+  primaryAction: {
     marginBottom: spacing.xl,
+  },
+  /** 設定リストは画面の左右いっぱいまで敷く（Screen の左右余白を打ち消す） */
+  list: {
+    marginHorizontal: -spacing.lg,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.borderSubtle,
   },
 });

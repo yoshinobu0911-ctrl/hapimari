@@ -10,7 +10,6 @@
     "./fraud-words": "./src/fraud_words.ts",
     "./adjacent-prefectures": "./src/adjacent_prefectures.ts",
     "./constants": "./src/constants.ts",
-    "./payment-provider": "./src/payment-provider.ts",
     "./types": "./src/types/database.ts"
   },
   "scripts": {

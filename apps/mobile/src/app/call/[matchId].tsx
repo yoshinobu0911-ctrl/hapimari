@@ -13,7 +13,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppButton } from '@/components/ui/app-button';
 import { colors, fontSize, spacing } from '@/constants/theme';
-import { mockCallProvider } from '@/lib/call-provider-mock';
+import { callAudioEnabled, callProvider } from '@/lib/call-provider';
 import { usePhotoUrl } from '@/lib/photo-url';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/auth';
@@ -24,12 +24,15 @@ const END_REASON_LABEL: Record<CallEndReason, string> = {
   timeout: '15分の上限に達したため終了しました',
   no_answer: '応答がありませんでした',
   error: '接続できませんでした。時間をおいてお試しください',
+  mic_denied:
+    'マイクの使用が許可されていません。ブラウザの設定でマイクを許可して、もう一度お試しください',
 };
 
 /**
- * 通話画面（docs/design/M5_design.md §5）
- * モック通話: シグナリングとタイマー・ログは本物、音声は流れない（画面に明示）。
- * 15分（900秒）で自動切断（R5関連・SPEC M5）。callsログは発信者のみが書く。
+ * 通話画面（docs/design/M5_design.md §5 / M8で実音声に接続）
+ * Web = Agora（実音声）／ネイティブ = 当面モック（lib/call-provider.ts で切替・M8 §6-2）。
+ * 15分（900秒）で自動切断。サーバー側でもトークン期限（16分）で強制される。
+ * callsログは発信者のみが書く。
  */
 export default function CallScreen() {
   const { matchId, role } = useLocalSearchParams<{ matchId: string; role?: string }>();
@@ -126,8 +129,8 @@ export default function CallScreen() {
     };
 
     const start = isCaller
-      ? mockCallProvider.startCall(matchId, myId, events)
-      : mockCallProvider.joinCall(matchId, myId, events);
+      ? callProvider.startCall(matchId, myId, events)
+      : callProvider.joinCall(matchId, myId, events);
     start.then((handle) => {
       handleRef.current = handle;
     });
@@ -201,9 +204,11 @@ export default function CallScreen() {
         <Text style={styles.hint}>お相手がチャット画面を開いているときにつながります。</Text>
       ) : null}
 
-      <Text style={styles.mockNote}>
-        ※ モック通話です。音声は流れません（正式リリースで通話SDKに接続されます）。
-      </Text>
+      {callAudioEnabled ? null : (
+        <Text style={styles.mockNote}>
+          ※ モック通話です。音声は流れません（正式リリースで通話SDKに接続されます）。
+        </Text>
+      )}
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + spacing.xl }]}>
         {callState === 'ended' ? (

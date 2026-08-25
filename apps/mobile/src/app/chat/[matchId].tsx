@@ -21,7 +21,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { SkeletonRow } from '@/components/ui/skeleton';
 import { colors, fontSize, radius, sizes, spacing, typography } from '@/constants/theme';
 import { useMyProfile } from '@/hooks/use-my-profile';
-import { mockCallProvider } from '@/lib/call-provider-mock';
+import { callProvider } from '@/lib/call-provider';
 import { confirmDialog } from '@/lib/confirm';
 import { getDateStatus } from '@/lib/date-api';
 import { supabase } from '@/lib/supabase';
@@ -161,7 +161,7 @@ export default function Chat() {
   useFocusEffect(
     useCallback(() => {
       if (!matchId || !myId || !match) return;
-      const listener = mockCallProvider.listen(matchId, myId, {
+      const listener = callProvider.listen(matchId, myId, {
         onIncoming: () => setIncomingCall(true),
         onCancelled: () => setIncomingCall(false),
       });

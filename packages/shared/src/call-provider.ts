@@ -10,7 +10,14 @@ import { CALL_MAX_DURATION_SECONDS } from './constants';
 
 export type CallState = 'idle' | 'calling' | 'ringing' | 'connected' | 'ended';
 
-export type CallEndReason = 'hangup' | 'declined' | 'timeout' | 'no_answer' | 'error';
+export type CallEndReason =
+  | 'hangup'
+  | 'declined'
+  | 'timeout'
+  | 'no_answer'
+  | 'error'
+  /** マイクの使用が許可されなかった（M8・Agora実装のみが送出する） */
+  | 'mic_denied';
 
 export interface CallProviderEvents {
   onStateChange: (state: CallState) => void;

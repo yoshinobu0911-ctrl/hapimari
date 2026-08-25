@@ -1,13 +1,17 @@
 /**
- * モック通話プロバイダ（docs/design/M5_design.md §4・オーナー承認済み判断#1）
+ * シグナリング通話プロバイダ（docs/design/M5_design.md §4 / M8で役割を更新）
  *
  * Supabase Realtime の broadcast チャネル `call-{matchId}` で
  * invite / accept / decline / hangup を送受信する。
  * シグナリング（発着信・応答・切断・タイマー）は本物、**音声は流れない**。
- * Agora 契約後は CallProvider の別実装に差し替える（このファイルだけが対象）。
  *
- * 既知の許容リスク（設計書§8-3）: broadcastチャネルはRLS対象外のため、
+ * M8以降の役割は2つ:
+ *   1. Agora実装（call-provider-agora.ts・Web）の**シグナリング部として共用**される
+ *   2. ネイティブでは当面このモックがそのまま使われる（M8 §6-2・Web先行）
+ *
+ * 既知の許容リスク（M5設計書§8-3）: broadcastチャネルはRLS対象外のため、
  * イベントの from を検査し当事者以外からのイベントは無視する。
+ * 音声側は agora-token（サーバーの資格チェック）無しでは接続できない。
  */
 import {
   CALL_NO_ANSWER_TIMEOUT_SECONDS,

@@ -35,6 +35,7 @@ interface ProfileRow {
   id: string;
   gender: string;
   status: string;
+  is_verified: boolean;
   has_children: boolean;
   understands_children: boolean;
 }
@@ -49,7 +50,7 @@ function toRuleUser(p: ProfileRow): LikeRuleUser {
   };
 }
 
-const PROFILE_COLUMNS = 'id, gender, status, has_children, understands_children';
+const PROFILE_COLUMNS = 'id, gender, status, is_verified, has_children, understands_children';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -119,6 +120,18 @@ Deno.serve(async (req) => {
       ok: false,
       error: 'not_active',
       message: 'プロフィール登録を完了してください。',
+    });
+  }
+
+  // 本人確認（児童でないことの確認）が完了するまで、いいねは送れない
+  // （一言メッセージが未確認のまま相手に届くのを防ぐ。出会い系サイト規制法の
+  //   年齢確認を安全側に倒す 2026-08-26 オーナー決定。
+  //   docs/decisions/2026-08-26_確認前操作の安全側変更.md）
+  if ((senderRow as ProfileRow).is_verified !== true) {
+    return json(403, {
+      ok: false,
+      error: 'not_verified',
+      message: '本人確認の完了後にご利用いただけます。お手続きの完了をお待ちください。',
     });
   }
 

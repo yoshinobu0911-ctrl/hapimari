@@ -121,7 +121,7 @@ export default function MyPage() {
             <Banner
               tone="warning"
               title="本人確認がまだ完了していません"
-              description="本人確認が完了するまで、メッセージの送信はできません。"
+              description="本人確認が完了するまで、いいね・メッセージの送信・音声通話はご利用いただけません。"
             />
           </View>
         ) : null}

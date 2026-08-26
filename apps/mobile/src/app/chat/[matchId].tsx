@@ -21,7 +21,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { SkeletonRow } from '@/components/ui/skeleton';
 import { colors, fontSize, radius, sizes, spacing, typography } from '@/constants/theme';
 import { useMyProfile } from '@/hooks/use-my-profile';
-import { callProvider } from '@/lib/call-provider';
+import { callAudioEnabled, callProvider } from '@/lib/call-provider';
 import { confirmDialog } from '@/lib/confirm';
 import { getDateStatus } from '@/lib/date-api';
 import { supabase } from '@/lib/supabase';
@@ -221,24 +221,27 @@ export default function Chat() {
         right={
           partner ? (
             <View style={styles.headerActions}>
-              <HeaderIconButton
-                name="call-outline"
-                label="音声通話"
-                onPress={() =>
-                  confirmDialog(
-                    '通話を始める前に',
-                    '電話番号・LINEなどの連絡先交換は、十分に信頼できるまでお控えください。金銭・投資の話が出たら通話をやめて、運営への通報をご検討ください。\n（最長15分で自動終了します。モック通話のため音声は流れません）',
-                    async () => {
-                      // 着信リスナーを確実に閉じてから通話チャネルへ参加する（同名チャネル競合防止）
-                      await callListenerRef.current?.stop();
-                      router.push({
-                        pathname: '/call/[matchId]',
-                        params: { matchId: matchId ?? '', role: 'caller' },
-                      });
-                    },
-                  )
-                }
-              />
+              {/* 通話は本人確認の承認後のみ（2026-08-26 決定。サーバー側でも二重に拒否される） */}
+              {isVerified ? (
+                <HeaderIconButton
+                  name="call-outline"
+                  label="音声通話"
+                  onPress={() =>
+                    confirmDialog(
+                      '通話を始める前に',
+                      `電話番号・LINEなどの連絡先交換は、十分に信頼できるまでお控えください。金銭・投資の話が出たら通話をやめて、運営への通報をご検討ください。\n（最長15分で自動終了します。${callAudioEnabled ? '' : 'モック通話のため音声は流れません。'}）`,
+                      async () => {
+                        // 着信リスナーを確実に閉じてから通話チャネルへ参加する（同名チャネル競合防止）
+                        await callListenerRef.current?.stop();
+                        router.push({
+                          pathname: '/call/[matchId]',
+                          params: { matchId: matchId ?? '', role: 'caller' },
+                        });
+                      },
+                    )
+                  }
+                />
+              ) : null}
               <HeaderIconButton
                 name="ellipsis-horizontal"
                 label="通報・ブロック"

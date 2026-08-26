@@ -8,11 +8,14 @@
  * Agora プロジェクトは「App ID + Token（Secured mode）」で作成しているため、
  * ここで発行するトークンが無いと通話チャネルには一切入れない。
  * 発行条件（すべて満たすこと）:
- *   1. ログイン済み・status = 'active'
+ *   1. ログイン済み・status = 'active'・本人確認済み
  *   2. そのマッチの当事者である
  *   3. マッチがブロックされていない
- *   4. お相手が active である
- * 課金状態・本人確認は条件にしない（2026-08-19 / 08-25 オーナー決定）。
+ *   4. お相手が active かつ本人確認済みである
+ * 課金状態は条件にしない（2026-08-19 オーナー決定）。
+ * 本人確認は当初「条件にしない」（08-25決定）だったが、出会い系サイト規制法の
+ * 年齢確認（児童でないことの確認）を安全側に倒すため「双方とも確認済みのみ」へ変更
+ * （2026-08-26 オーナー決定。docs/decisions/2026-08-26_確認前操作の安全側変更.md）。
  *
  * 15分制限はトークンの有効期限（既定16分）で Agora 側からも強制される。
  * クライアントのタイマー（call/[matchId].tsx）は主にUX用で、こちらが最後の砦。
@@ -111,11 +114,14 @@ Deno.serve(async (req) => {
     // --- 資格の確認（設計書 §3）--------------------------------------
     const { data: me } = await admin
       .from('profiles')
-      .select('status')
+      .select('status, is_verified')
       .eq('id', user.id)
-      .maybeSingle<{ status: string }>();
+      .maybeSingle<{ status: string; is_verified: boolean }>();
     if (me?.status !== 'active') {
       return fail(403, 'not_active', '現在この機能はご利用いただけません。');
+    }
+    if (me.is_verified !== true) {
+      return fail(403, 'not_verified', '本人確認の完了後にご利用いただけます。');
     }
 
     const { data: match } = await admin
@@ -136,10 +142,11 @@ Deno.serve(async (req) => {
     const partnerId = match.user_a === user.id ? match.user_b : match.user_a;
     const { data: partner } = await admin
       .from('profiles')
-      .select('status')
+      .select('status, is_verified')
       .eq('id', partnerId)
-      .maybeSingle<{ status: string }>();
-    if (partner?.status !== 'active') {
+      .maybeSingle<{ status: string; is_verified: boolean }>();
+    // 相手が退会・凍結、または本人確認未了の間は通話できない（双方確認済みのみ）
+    if (partner?.status !== 'active' || partner.is_verified !== true) {
       return fail(410, 'partner_unavailable', '現在おかけになれません。');
     }
 

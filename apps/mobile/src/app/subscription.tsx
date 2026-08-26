@@ -405,14 +405,24 @@ export default function Subscription() {
                 </Text>
                 <Text style={styles.legalNote}>・お客様都合による返金・中途解約はできません。</Text>
               </View>
-              {/*
-                特商法表記・利用規約・プライバシーポリシーへのリンクは、BYYコーポレート
-                サイト側のページ公開後にここへ追加する（2026-08-19 オーナー判断・保留）。
-                公開前の設置は法定要件（docs/launch_checklist.md ②-11）。
-              */}
             </>
           )
         ) : null}
+
+        {/* 特商法表記・利用規約・プライバシーポリシー。課金画面のどの状態からも1タップで到達できる
+            ことが法定要件のため、契約中(active)・解約予約中(cancel_scheduled)でも常に表示する。
+            docs/launch_checklist.md ②-11 */}
+        <View style={styles.legalLinks}>
+          <Pressable onPress={() => Linking.openURL('https://www.happymarry.jp/tokushoho.html')}>
+            <Text style={styles.legalLink}>特定商取引法に基づく表記</Text>
+          </Pressable>
+          <Pressable onPress={() => Linking.openURL('https://www.happymarry.jp/terms.html')}>
+            <Text style={styles.legalLink}>利用規約</Text>
+          </Pressable>
+          <Pressable onPress={() => Linking.openURL('https://www.happymarry.jp/privacy.html')}>
+            <Text style={styles.legalLink}>プライバシーポリシー</Text>
+          </Pressable>
+        </View>
       </ScrollView>
     </View>
   );
@@ -485,6 +495,15 @@ const styles = StyleSheet.create({
   },
   legalNote: {
     ...typography.caption,
+  },
+  legalLinks: {
+    gap: spacing.xs,
+    marginTop: spacing.sm,
+  },
+  legalLink: {
+    ...typography.caption,
+    color: colors.primary,
+    textDecorationLine: 'underline',
   },
   currentLabel: {
     ...typography.heading,

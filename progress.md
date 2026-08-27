@@ -21,12 +21,11 @@
 
 ## 📋 TODO（次にやること）
 <!-- 優先度順。着手→In Progress、完了→Done へ移動。 -->
+- [ ] 【オーナー確認待ち】**LPの18歳未満表示をpush（本番反映）** — `homepage/hapimari-lp` コミット da8b410 が origin/main より1つ先行
 - [ ] 【オーナー待ち・最重要】**出会い系サイト規制法の届出**（行政書士面談・申請）。`docs/legal/age_verification_description.md` を面談時に渡す。受理まで2週間〜1ヶ月＝9/14公開の最大の制約
 - [ ] 【要オーナー決定】**アプリ本体の本番URL**（届出書に記載が必要。現状アプリは未デプロイでURL未確定。提案は `app.happymarry.jp` — `age_verification_description.md` §6。決定後のDNS・Vercel設定はエージェント作業）
-- [ ] 【承認待ち】**「18歳未満は利用できません」表示の追加**（現状どこにも明示なし。LPフッター・アプリwelcome/signupへの文言追加4案 = `age_verification_description.md` §7。アプリ側2箇所は文言変更のみで即実施可・LPは別リポジトリ `homepage/hapimari-lp`）
 - [ ] 【要オーナー判断・センシティブ領域】**admin本格認証（Supabase Auth）が未実装のまま**。現状は共有パスワードのBasic認証のみ（M6.5の暫定実装）。M7で対応する予定だったが実施されていない。CLAUDE.md §6により設計提案→承認が必要（このセッションでは未提案）
 - [ ] 【要オーナー判断】**更新3日前のメール事前通知が完全未実装**（launch_checklist ②-21）。アプリ内解約導線は実装済み。メール送信には外部サービス（Resend等）の追加が必要になる可能性があり、SPEC §8の「メール送信はSupabase Auth標準のみ」からの逸脱になるため要承認
-- [ ] 【軽微】`docs/legal/tokushoho.md` が「音声通話は有料プランに含まれる」という古い記載のまま。2026-08-19決定（通話は無料会員も利用可）に合わせて修正が必要（README.mdに指摘済み・未対応）
 - [ ] 【オーナー待ち】**M8 実音声の疎通確認**: Agoraアカウント作成（設計書§8の手順）→ App ID / App Certificate をチャットで共有 → `.env` 設定して `docs/acceptance/M8.md` §B を実施（2ブラウザで通話・マイク拒否・期限切断・ログ）
 - [ ] M8の後続: ネイティブ（iOS/Android）の通話対応（react-native-agora + Expo開発ビルド。ストア配信準備と同時に。9/14のWeb先行公開には不要と設計書に明記済み）
 - [ ] 【オーナー待ち】**M7.2 の実決済テスト**（Stripeテストキーを `supabase/functions/.env` に設定後、`docs/design/M7_2_payment_ui_design.md` §12 の手順で §11-(7)〜(15)(18) を実施）→ 結果を `docs/acceptance/M7_2.md` §B に記入
@@ -34,6 +33,7 @@
 
 ## ✅ 完了したこと（Done）
 <!-- 新しいものを上に。日付(YYYY-MM-DD)とツール名を添える。 -->
+- 2026-08-27 (Claude): ①`docs/legal/tokushoho.md` の音声通話を有料機能→無料範囲へ移動（08-19決定に整合・README論点3注記も更新）②オーナー承認済み文言「18歳未満はご利用できません」を welcome/signup に追加（コミット 4b2a14a・biome 0 / tsc 0）③LP（別リポ homepage/hapimari-lp）のトップ hero-note・フッター・法定3ページに同文言を追加（コミット da8b410・**ローカルのみ、pushは未実施＝本番未反映**。ローカルHTTPでheroの描画確認・フッターはDOMで存在確認、スクショはタイムアウトで未取得）
 - 2026-08-26 (Claude): **9/14リリース残タスクの棚卸し**（ワークフローで6領域を並行検証）＋**subscription.tsx保留分の実装**。①法定リンク3本（特商法・利用規約・プライバシーポリシー→happymarry.jp）をcontract中/解約予約中/プラン選択の全状態で常時表示するよう設置（当初プラン選択時のみだったのを是正）。②検証で判明した事実: admin本格認証は未実装のままBasic認証のみ・更新3日前メール通知は完全未実装・M8ネイティブ通話は9/14に不要（設計通り）・UI刷新は progress.md記載より進んでいた（14画面中9画面が実は移行済み）・tokushoho.mdに通話課金に関する古い記載が残存。検証: tsc 0 / biome 0（mobile）
 - 2026-08-26 (Claude): **警察届出対応**。①「児童でないことの確認方法」の説明資料と届出書文例を作成（`docs/legal/age_verification_description.md`・行政書士との面談用）②オーナー決定により**いいね送信・音声通話を本人確認の承認後のみに変更**（like関数・agora-token関数のサーバー側ゲート＋通話ボタン非表示＋案内文更新。M8 §6-1のB決定を上書き。閲覧のみ確認前可＝行政書士回答待ち）③通話ダイアログの古い「モック」文言を修正。検証: 5パターン実測（未確認403/相手未確認410/確認済み200）・biome/tsc 0 → `docs/decisions/2026-08-26_確認前操作の安全側変更.md`
 - 2026-08-25 (Claude): **M8 音声通話の本実装（コード完了）**。オーナー承認（6-1=B 本人確認ゲートなし・6-2=A Web先行）を受けて実装。①Edge Function `agora-token`（当事者・非ブロック・相手activeの資格チェック＋16分トークン=15分上限のサーバー側強制）②`call-provider-agora`（Web・シグナリングは既存Realtimeを共用、音声のみAgora）③`.web.ts`分割でネイティブへのSDK混入を防止 ④マイク拒否の専用エラー表示。検証: biome 0 / tsc 0 / shared 88件 / トークン発行の正当系+エラー系4本を実測（ダミーキー）。**実音声はAgoraキー共有後に確認** → `docs/acceptance/M8.md`

@@ -17,7 +17,7 @@
 
 ## 🚧 進行中（In Progress）
 <!-- 中断しても再開できるように、今どのファイル・どの作業の途中かを書く。 -->
-- UI刷新の残り画面: 実際にコードを確認したところ、**14画面中9画面は既に新共通部品へ移行済み**（progress.mdの記載が古かった）。未着手は likes・messages・index の3画面のみ、blocked・callは部分対応。「オーナー確認待ち」は解消済みとみて次セッションで残り3〜5画面に着手してよい。
+- （なし）
 
 ## 📋 TODO（次にやること）
 <!-- 優先度順。着手→In Progress、完了→Done へ移動。 -->
@@ -29,10 +29,10 @@
 - [ ] 【オーナー待ち】**M8 実音声の疎通確認**: Agoraアカウント作成（設計書§8の手順）→ App ID / App Certificate をチャットで共有 → `.env` 設定して `docs/acceptance/M8.md` §B を実施（2ブラウザで通話・マイク拒否・期限切断・ログ）
 - [ ] M8の後続: ネイティブ（iOS/Android）の通話対応（react-native-agora + Expo開発ビルド。ストア配信準備と同時に。9/14のWeb先行公開には不要と設計書に明記済み）
 - [ ] 【オーナー待ち】**M7.2 の実決済テスト**（Stripeテストキーを `supabase/functions/.env` に設定後、`docs/design/M7_2_payment_ui_design.md` §12 の手順で §11-(7)〜(15)(18) を実施）→ 結果を `docs/acceptance/M7_2.md` §B に記入
-- [ ] 残り3〜5画面（likes・messages・index、部分対応のblocked・call）へトークン/共通部品を横展開
 
 ## ✅ 完了したこと（Done）
 <!-- 新しいものを上に。日付(YYYY-MM-DD)とツール名を添える。 -->
+- 2026-08-27 (Claude): **UI刷新の残り5画面を移行完了**（オーナー承認A=通話は最小限）。likes（Screen/Card/EmptyState/SkeletonRow）・messages（Screen/EmptyState/SkeletonRow＋トークン）・discover（並び替えをChipへ。ヘッダー行は既にトークン化済みのため据え置き＝AppHeaderは戻る付きスタック画面用でタブ画面には不適と判断）・blocked（Card/AppButton sm/EmptyState/SkeletonRow）・call（typographyトークンのみ・ロジック不変）。コミット 444cc96〜94eba86。検証: biome 0 / tsc 0、Expo Web＋セッション注入で likes（読込/一覧）・messages（一覧/空）・discover（Chip）・blocked（空）を実描画確認。**未確認**: likesの空状態・blockedの一覧行（解除ボタン）・call画面（実通話が必要）。文言の軽微変更: 空状態を見出し＋説明に分割（messages「まだトークはありません」を見出しとして追加）
 - 2026-08-27 (Claude): **PR #1にレビュー依頼コメントを投稿**（launch_checklist ②-17完了）。1ヶ月放置されていた7月レビューへの返信＋7月以降の追加分（決済・通話）のサマリ。投稿前に全12件の技術的主張をワークフローで実コードと突き合わせ済み → https://github.com/yoshinobu0911-ctrl/hapimari/pull/1#issuecomment-5436248448
 - 2026-08-27 (Claude): オーナーとの一問一答で2件決定。①**admin本格認証は当面見送り**（スタッフがオーナー1名のみのため個別ログイン不要。Basic認証のまま運用）→ `docs/decisions/2026-08-27_admin認証は当面Basic認証で維持.md` ②距離RPCの限定条件（active・異性・非ブロック）はオーナー確認済みで変更不要。あわせてPR #1コメント案の技術的主張12件をワークフローで実コードと突き合わせ、全件裏取り済み（reviewed_byは関数修正済みだが呼び出し側が未対応で実質null、決済/通話は実装完了だが実キーでの動作確認は未実施、という2点のみ文言を精緻化）
 - 2026-08-27 (Claude): ①`docs/legal/tokushoho.md` の音声通話を有料機能→無料範囲へ移動（08-19決定に整合・README論点3注記も更新）②オーナー承認済み文言「18歳未満はご利用できません」を welcome/signup に追加（コミット 4b2a14a・biome 0 / tsc 0）③LP（別リポ homepage/hapimari-lp）のトップ hero-note・フッター・法定3ページに同文言を追加（コミット da8b410・オーナー承認後にpush→**本番反映済み**。www.happymarry.jp の4ページすべてで文言をcurlで確認。ローカルではheroの描画をスクショ確認、フッターはDOM存在確認のみ）

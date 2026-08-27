@@ -8,10 +8,13 @@ import {
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useEffect } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { ProfilePhoto } from '@/components/profile-photo';
-import { colors, fontSize, sizes, spacing } from '@/constants/theme';
+import { Card } from '@/components/ui/card';
+import { EmptyState } from '@/components/ui/empty-state';
+import { Screen } from '@/components/ui/screen';
+import { SkeletonRow } from '@/components/ui/skeleton';
+import { colors, spacing, typography } from '@/constants/theme';
 import { useMyProfile } from '@/hooks/use-my-profile';
 import { type Profile, type PublicProfile, supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/auth';
@@ -38,7 +41,6 @@ function toCompatInput(p: Profile | PublicProfile): CompatibilityInput {
  * カードは一覧カードと同じ原則（写真・名前・年齢・相性85%+のみ + 一言メッセージ）。
  */
 export default function Likes() {
-  const insets = useSafeAreaInsets();
   const router = useRouter();
   const queryClient = useQueryClient();
   const session = useAuthStore((s) => s.session);
@@ -102,22 +104,29 @@ export default function Likes() {
   const items = [...visible].reverse(); // 新しい順に表示
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top + spacing.md }]}>
-      <Text style={styles.title}>お相手からのいいね</Text>
+    <Screen title="お相手からのいいね" scroll={false}>
       {query.isPending ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={colors.primary} />
+        <View style={styles.skeletons} testID="likes-loading">
+          {[0, 1, 2].map((i) => (
+            <SkeletonRow key={i} />
+          ))}
         </View>
       ) : query.isError ? (
-        <View style={styles.center}>
-          <Text style={styles.empty}>読み込みに失敗しました。時間をおいてお試しください。</Text>
-        </View>
+        <EmptyState
+          testID="likes-error"
+          icon="cloud-offline-outline"
+          title="読み込みに失敗しました"
+          description="時間をおいてお試しください。"
+          actionLabel="もう一度読み込む"
+          onAction={() => query.refetch()}
+        />
       ) : items.length === 0 ? (
-        <View style={styles.center}>
-          <Text style={styles.empty}>
-            いただいた「いいね」がここに表示されます。{'\n'}まだ新しいいいねはありません。
-          </Text>
-        </View>
+        <EmptyState
+          testID="likes-empty"
+          icon="heart-outline"
+          title="まだ新しいいいねはありません"
+          description="いただいた「いいね」がここに表示されます。"
+        />
       ) : (
         <ScrollView contentContainerStyle={styles.list} testID="likes-list">
           {carriedOver.length > 0 ? (
@@ -130,81 +139,57 @@ export default function Likes() {
             if (!sender) return null;
             const compatibility = me ? calcCompatibility(me, toCompatInput(sender)) : 0;
             return (
-              <Pressable
+              <Card
                 key={like.id}
-                accessibilityRole="button"
+                padded={false}
                 accessibilityLabel={`${sender.nickname}さんからのいいね`}
                 onPress={() => router.push(`/profile/${sender.id}`)}
-                style={({ pressed }) => [styles.card, pressed && { opacity: 0.85 }]}
               >
-                <ProfilePhoto
-                  path={sender.photo_urls?.[0]}
-                  style={styles.photo}
-                  placeholderStyle={styles.photoPlaceholder}
-                  placeholderTextStyle={styles.photoPlaceholderText}
-                />
-                <View style={styles.cardBody}>
-                  <Text style={styles.name} numberOfLines={1}>
-                    {sender.nickname}
-                    <Text style={styles.age}> {sender.age}歳</Text>
-                  </Text>
-                  {shouldShowCompatibility(compatibility) ? (
-                    <Text style={styles.compatibility}>相性 {compatibility}%</Text>
-                  ) : null}
-                  {like.message ? (
-                    <Text style={styles.message} numberOfLines={2}>
-                      「{like.message}」
+                <View style={styles.cardRow}>
+                  <ProfilePhoto
+                    path={sender.photo_urls?.[0]}
+                    style={styles.photo}
+                    placeholderStyle={styles.photoPlaceholder}
+                    placeholderTextStyle={styles.photoPlaceholderText}
+                  />
+                  <View style={styles.cardBody}>
+                    <Text style={styles.name} numberOfLines={1}>
+                      {sender.nickname}
+                      <Text style={styles.age}> {sender.age}歳</Text>
                     </Text>
-                  ) : null}
+                    {shouldShowCompatibility(compatibility) ? (
+                      <Text style={styles.compatibility}>相性 {compatibility}%</Text>
+                    ) : null}
+                    {like.message ? (
+                      <Text style={styles.message} numberOfLines={2}>
+                        「{like.message}」
+                      </Text>
+                    ) : null}
+                  </View>
                 </View>
-              </Pressable>
+              </Card>
             );
           })}
         </ScrollView>
       )}
-    </View>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-    paddingHorizontal: spacing.lg,
-  },
-  title: {
-    fontSize: fontSize.title,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: spacing.sm,
-  },
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  empty: {
-    fontSize: fontSize.body,
-    color: colors.textSub,
-    textAlign: 'center',
-    lineHeight: 26,
+  skeletons: {
+    // SkeletonRow は自前で左右余白を持つため、Screen の余白と二重にならないよう相殺する
+    marginHorizontal: -spacing.lg,
   },
   list: {
     paddingBottom: spacing.xl,
     gap: spacing.md,
   },
   carryNote: {
-    fontSize: fontSize.body,
-    color: colors.textSub,
-    lineHeight: 24,
+    ...typography.caption,
   },
-  card: {
+  cardRow: {
     flexDirection: 'row',
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: sizes.radius,
-    overflow: 'hidden',
-    backgroundColor: colors.background,
   },
   photo: {
     width: 104,
@@ -216,8 +201,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   photoPlaceholderText: {
-    fontSize: fontSize.small,
-    color: colors.textSub,
+    ...typography.caption,
   },
   cardBody: {
     flex: 1,
@@ -226,22 +210,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   name: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.text,
+    ...typography.heading,
   },
   age: {
-    fontSize: 18,
-    fontWeight: '500',
+    ...typography.bodyStrong,
   },
   compatibility: {
-    fontSize: 20,
-    fontWeight: '800',
+    ...typography.heading,
     color: colors.primary,
   },
   message: {
-    fontSize: fontSize.body,
+    ...typography.body,
     color: colors.textSub,
-    lineHeight: 24,
   },
 });

@@ -1,8 +1,12 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { AppButton } from '@/components/ui/app-button';
+import { Card } from '@/components/ui/card';
+import { EmptyState } from '@/components/ui/empty-state';
 import { Screen } from '@/components/ui/screen';
-import { colors, fontSize, sizes, spacing } from '@/constants/theme';
+import { SkeletonRow } from '@/components/ui/skeleton';
+import { spacing, typography } from '@/constants/theme';
 import { confirmDialog } from '@/lib/confirm';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/auth';
@@ -56,9 +60,17 @@ export default function BlockedUsers() {
       subtitle="ブロック中はお相手のプロフィールが表示されないため、ブロックした日時のみ表示しています。"
     >
       {query.isPending ? (
-        <ActivityIndicator size="large" color={colors.primary} />
+        <View style={styles.skeletons} testID="blocks-loading">
+          {[0, 1].map((i) => (
+            <SkeletonRow key={i} />
+          ))}
+        </View>
       ) : blocks.length === 0 ? (
-        <Text style={styles.empty}>ブロックしたユーザーはいません。</Text>
+        <EmptyState
+          testID="blocks-empty"
+          icon="shield-checkmark-outline"
+          title="ブロックしたユーザーはいません。"
+        />
       ) : (
         <View style={styles.list}>
           {blocks.map((block, index) => {
@@ -67,45 +79,38 @@ export default function BlockedUsers() {
               ? `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日にブロック`
               : 'ブロック中';
             return (
-              <View key={block.id} style={styles.row}>
-                <Text style={styles.rowText}>
-                  ブロック中のユーザー{blocks.length > 1 ? ` ${index + 1}` : ''}
-                  {'\n'}
-                  <Text style={styles.rowSub}>{label}</Text>
-                </Text>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="ブロックを解除"
-                  testID={`unblock-${index}`}
-                  onPress={() => unblock(block.id)}
-                  style={styles.unblockButton}
-                >
-                  <Text style={styles.unblockText}>解除</Text>
-                </Pressable>
-              </View>
+              <Card key={block.id}>
+                <View style={styles.row}>
+                  <View style={styles.rowBody}>
+                    <Text style={styles.rowText}>
+                      ブロック中のユーザー{blocks.length > 1 ? ` ${index + 1}` : ''}
+                    </Text>
+                    <Text style={styles.rowSub}>{label}</Text>
+                  </View>
+                  <AppButton
+                    label="解除"
+                    variant="secondary"
+                    size="sm"
+                    testID={`unblock-${index}`}
+                    onPress={() => unblock(block.id)}
+                  />
+                </View>
+              </Card>
             );
           })}
         </View>
       )}
       <View style={styles.footer}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="戻る"
-          onPress={() => router.back()}
-          style={styles.backButton}
-        >
-          <Text style={styles.backText}>← マイページへ戻る</Text>
-        </Pressable>
+        <AppButton label="← マイページへ戻る" variant="quiet" onPress={() => router.back()} />
       </View>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  empty: {
-    fontSize: fontSize.body,
-    color: colors.textSub,
-    lineHeight: 26,
+  skeletons: {
+    // SkeletonRow は自前で左右余白を持つため、Screen の余白と二重にならないよう相殺する
+    marginHorizontal: -spacing.lg,
   },
   list: {
     gap: spacing.sm,
@@ -114,45 +119,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: sizes.radius,
-    padding: spacing.md,
     gap: spacing.md,
   },
-  rowText: {
+  rowBody: {
     flex: 1,
-    fontSize: fontSize.body,
-    color: colors.text,
-    lineHeight: 24,
+    gap: spacing.xxs,
+  },
+  rowText: {
+    ...typography.body,
   },
   rowSub: {
-    color: colors.textSub,
-    fontSize: fontSize.small,
-  },
-  unblockButton: {
-    minHeight: sizes.tapArea,
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.primary,
-    borderRadius: sizes.radius,
-    paddingHorizontal: spacing.md,
-  },
-  unblockText: {
-    fontSize: fontSize.body,
-    color: colors.primary,
-    fontWeight: '700',
+    ...typography.caption,
   },
   footer: {
     marginTop: spacing.xl,
-  },
-  backButton: {
-    minHeight: sizes.tapArea,
-    justifyContent: 'center',
-  },
-  backText: {
-    fontSize: fontSize.body,
-    color: colors.primary,
-    fontWeight: '600',
   },
 });

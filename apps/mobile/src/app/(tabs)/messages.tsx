@@ -1,10 +1,12 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useEffect } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { ProfilePhoto } from '@/components/profile-photo';
-import { colors, fontSize, spacing } from '@/constants/theme';
+import { EmptyState } from '@/components/ui/empty-state';
+import { Screen } from '@/components/ui/screen';
+import { SkeletonRow } from '@/components/ui/skeleton';
+import { colors, sizes, spacing, typography } from '@/constants/theme';
 import { type PublicProfile, supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/auth';
 
@@ -36,7 +38,6 @@ function formatDate(iso: string | null): string {
  * 行: 相手写真（小・丸）/ 名前 / 最新メッセージ先頭30字 / 日時。未読バッジは作らない。
  */
 export default function Messages() {
-  const insets = useSafeAreaInsets();
   const router = useRouter();
   const queryClient = useQueryClient();
   const session = useAuthStore((s) => s.session);
@@ -108,23 +109,31 @@ export default function Messages() {
   const matches = query.data?.matches ?? [];
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top + spacing.md }]}>
-      <Text style={styles.title}>メッセージ</Text>
+    <Screen title="メッセージ" scroll={false}>
       {query.isPending ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={colors.primary} />
+        <View style={styles.skeletons} testID="matches-loading">
+          {[0, 1, 2].map((i) => (
+            <SkeletonRow key={i} />
+          ))}
         </View>
       ) : query.isError ? (
-        <View style={styles.center}>
-          <Text style={styles.empty}>読み込みに失敗しました。時間をおいてお試しください。</Text>
-        </View>
+        <EmptyState
+          testID="matches-error"
+          icon="cloud-offline-outline"
+          title="読み込みに失敗しました"
+          description="時間をおいてお試しください。"
+          actionLabel="もう一度読み込む"
+          onAction={() => query.refetch()}
+        />
       ) : matches.length === 0 ? (
-        <View style={styles.center}>
-          <Text style={styles.empty}>
-            マッチしたお相手とのやりとりがここに表示されます。{'\n'}
-            まずは「さがす」からいいねを送ってみましょう。
-          </Text>
-        </View>
+        <EmptyState
+          testID="matches-empty"
+          icon="chatbubbles-outline"
+          title="まだトークはありません"
+          description={
+            'マッチしたお相手とのやりとりがここに表示されます。\nまずは「さがす」からいいねを送ってみましょう。'
+          }
+        />
       ) : (
         <ScrollView contentContainerStyle={styles.list} testID="matches-list">
           {matches.map((match) => {
@@ -139,7 +148,7 @@ export default function Messages() {
                   partner ? `${partner.nickname}さんとのトーク` : '相手が表示できないトーク'
                 }
                 onPress={() => router.push(`/chat/${match.id}`)}
-                style={({ pressed }) => [styles.row, pressed && { opacity: 0.85 }]}
+                style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
               >
                 <ProfilePhoto
                   path={partner?.photo_urls?.[0]}
@@ -168,32 +177,14 @@ export default function Messages() {
           })}
         </ScrollView>
       )}
-    </View>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-    paddingHorizontal: spacing.lg,
-  },
-  title: {
-    fontSize: fontSize.title,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: spacing.sm,
-  },
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  empty: {
-    fontSize: fontSize.body,
-    color: colors.textSub,
-    textAlign: 'center',
-    lineHeight: 26,
+  skeletons: {
+    // SkeletonRow は自前で左右余白を持つため、Screen の余白と二重にならないよう相殺する
+    marginHorizontal: -spacing.lg,
   },
   list: {
     paddingBottom: spacing.xl,
@@ -203,13 +194,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.md,
     paddingVertical: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.borderSubtle,
+  },
+  rowPressed: {
+    backgroundColor: colors.surfaceSunken,
   },
   avatar: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: sizes.avatarMd,
+    height: sizes.avatarMd,
+    borderRadius: sizes.avatarMd / 2,
     backgroundColor: colors.surface,
   },
   avatarPlaceholder: {
@@ -219,25 +213,21 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   avatarPlaceholderText: {
-    fontSize: 12,
-    color: colors.textSub,
+    ...typography.caption,
     textAlign: 'center',
   },
   rowBody: {
     flex: 1,
-    gap: 2,
+    gap: spacing.xxs,
   },
   name: {
-    fontSize: fontSize.body + 2,
-    fontWeight: '700',
-    color: colors.text,
+    ...typography.bodyStrong,
   },
   preview: {
-    fontSize: fontSize.body,
+    ...typography.body,
     color: colors.textSub,
   },
   time: {
-    fontSize: fontSize.small,
-    color: colors.textSub,
+    ...typography.caption,
   },
 });

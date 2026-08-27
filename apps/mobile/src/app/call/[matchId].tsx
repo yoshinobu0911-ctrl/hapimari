@@ -12,7 +12,7 @@ import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppButton } from '@/components/ui/app-button';
-import { colors, fontSize, spacing } from '@/constants/theme';
+import { colors, sizes, spacing, typography } from '@/constants/theme';
 import { callAudioEnabled, callProvider } from '@/lib/call-provider';
 import { usePhotoUrl } from '@/lib/photo-url';
 import { supabase } from '@/lib/supabase';
@@ -252,19 +252,19 @@ const styles = StyleSheet.create({
   },
   avatarInitial: {
     fontSize: 48,
+    lineHeight: 56,
     color: colors.textSub,
   },
   partner: {
-    fontSize: 34,
-    fontWeight: '700',
-    color: colors.text,
+    ...typography.display,
     marginTop: spacing.lg,
   },
   state: {
-    fontSize: 22,
+    ...typography.headingLg,
     fontWeight: '600',
     color: colors.textSub,
     marginTop: spacing.md,
+    textAlign: 'center',
   },
   timerBox: {
     alignItems: 'center',
@@ -272,32 +272,32 @@ const styles = StyleSheet.create({
   },
   elapsed: {
     fontSize: 48,
+    lineHeight: 56,
     fontWeight: '700',
     color: colors.primary,
     fontVariant: ['tabular-nums'],
   },
   remaining: {
-    fontSize: fontSize.body,
+    ...typography.body,
     color: colors.textSub,
     marginTop: spacing.sm,
+    textAlign: 'center',
   },
   hint: {
-    fontSize: fontSize.body,
+    ...typography.body,
     color: colors.textSub,
     textAlign: 'center',
-    lineHeight: 24,
     marginTop: spacing.xl,
   },
   mockNote: {
-    fontSize: fontSize.small,
-    color: colors.textSub,
+    ...typography.caption,
     textAlign: 'center',
-    lineHeight: 24,
     marginTop: spacing.xl,
   },
   footer: {
     flex: 1,
     justifyContent: 'flex-end',
     alignSelf: 'stretch',
+    minHeight: sizes.buttonHeight + spacing.xl,
   },
 });

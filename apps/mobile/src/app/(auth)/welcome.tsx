@@ -56,7 +56,9 @@ export default function Welcome() {
           testID="welcome-login"
           onPress={() => router.push('/(auth)/login')}
         />
-        <Text style={styles.note}>ご登録は35歳以上の方が対象です</Text>
+        <Text style={styles.note}>
+          ご登録は35歳以上の方が対象です（18歳未満はご利用できません）
+        </Text>
       </View>
     </Screen>
   );

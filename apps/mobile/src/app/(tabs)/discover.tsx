@@ -12,9 +12,10 @@ import { useEffect, useRef } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ProfileCard } from '@/components/profile-card';
+import { Chip } from '@/components/ui/chip';
 import { EmptyState } from '@/components/ui/empty-state';
 import { SkeletonCard } from '@/components/ui/skeleton';
-import { colors, radius, sizes, spacing, typography } from '@/constants/theme';
+import { colors, sizes, spacing, typography } from '@/constants/theme';
 import { useMyProfile } from '@/hooks/use-my-profile';
 import { fetchDiscoverProfiles } from '@/lib/discover-query';
 import { syncMyLocation } from '@/lib/location';
@@ -122,41 +123,21 @@ export default function Discover() {
       </View>
 
       <View style={styles.sortRow}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="相性順"
+        <Chip
+          label="相性順"
           testID="sort-compatibility"
+          state={filter.sort === 'compatibility' ? 'selected' : 'default'}
           onPress={() => setSort('compatibility')}
-          style={[styles.sortChip, filter.sort === 'compatibility' && styles.sortChipOn]}
-        >
-          <Text
-            style={[styles.sortChipText, filter.sort === 'compatibility' && styles.sortChipTextOn]}
-          >
-            相性順
-          </Text>
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="距離が近い順"
-          testID="sort-distance"
-          disabled={!distanceAvailable}
-          onPress={() => setSort('distance')}
-          style={[
-            styles.sortChip,
-            filter.sort === 'distance' && styles.sortChipOn,
-            !distanceAvailable && styles.sortChipDisabled,
-          ]}
-        >
-          <Text
-            style={[
-              styles.sortChipText,
-              filter.sort === 'distance' && styles.sortChipTextOn,
-              !distanceAvailable && styles.sortChipTextDisabled,
-            ]}
-          >
-            距離が近い順
-          </Text>
-        </Pressable>
+        />
+        {/* 距離が取れていないときは押せない。色だけに頼らず薄くして無効を示す */}
+        <View style={!distanceAvailable && styles.sortChipDisabled}>
+          <Chip
+            label="距離が近い順"
+            testID="sort-distance"
+            state={filter.sort === 'distance' ? 'selected' : 'default'}
+            onPress={distanceAvailable ? () => setSort('distance') : undefined}
+          />
+        </View>
         {!query.isPending && !distanceAvailable ? (
           <Text style={styles.gpsHint} testID="gps-hint">
             位置情報を許可すると距離順に並べ替えできます
@@ -263,31 +244,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     marginBottom: spacing.sm,
   },
-  sortChip: {
-    minHeight: sizes.tapArea - 6,
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.pill,
-    paddingHorizontal: spacing.md,
-  },
-  sortChipOn: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primarySoft,
-  },
   sortChipDisabled: {
     opacity: 0.5,
-  },
-  sortChipText: {
-    ...typography.bodyStrong,
-    color: colors.textSub,
-  },
-  sortChipTextOn: {
-    color: colors.primary,
-    fontWeight: '700',
-  },
-  sortChipTextDisabled: {
-    color: colors.disabledText,
   },
   gpsHint: {
     ...typography.caption,

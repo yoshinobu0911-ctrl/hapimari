@@ -29,6 +29,16 @@
 - スキーマ反映は `pnpm exec supabase migration up` を使う（`db reset` は手動登録ユーザーを消す）
 - migration 適用後は型再生成:
   `pnpm exec supabase gen types typescript --local | Out-File -Encoding utf8NoBOM packages\shared\src\types\database.ts`
+  （※ package.json の `db:types` は PowerShell だと UTF-16 で書き出すため使わない。
+  　また「migrationを書いたのに適用し忘れる」事故が実際に起きた。適用＋型再生成をセットで）
+- **ローカルのシードユーザー**: seed01〜20@hapimari.test / password123（全員本人確認済み。01〜12=男性・13〜20=女性）。
+  認証後画面の実描画確認は、ローカルAuth APIでトークンを取得し localStorage `sb-127-auth-token` へ
+  注入する方式で行う（AIはパスワードを画面に入力しない。手順の実例: docs/acceptance/M7_2.md §A2）
+- **Web専用SDK（agora-rtc-sdk-ng 等）は `.web.ts` 分割で隔離する**。`Platform.OS` 分岐では
+  Metroがネイティブバンドルにも取り込んでしまい起動時に壊れる（実例: lib/call-provider.ts / .web.ts）
+- **Edge Function の応答規約**: 失敗は `{ ok: false, error, message }`。`message` は
+  そのまま利用者に表示できる日本語で書く（画面側で文言を自作しない）。シークレットは
+  Edge Function の環境変数のみに置き、アプリ（apps/mobile）には一切入れない
 - 詳細な落とし穴一覧（Realtime オプトイン、expo-router typed routes、react-native-web の癖 等）: `docs/design/M3_design.md` §1.2
 
 ## 4. 作業プロセス（提案先行・承認ゲート）

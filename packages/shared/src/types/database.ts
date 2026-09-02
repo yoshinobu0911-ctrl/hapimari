@@ -998,6 +998,7 @@ export type Database = {
     Functions: {
       _age_band: { Args: { p_birth: string }; Returns: string }
       _bio_features: { Args: { p_bio: string }; Returns: Json }
+      _contains_fraud_word: { Args: { p_text: string }; Returns: boolean }
       _date_get_match: {
         Args: { p_match_id: string }
         Returns: {
@@ -1079,6 +1080,10 @@ export type Database = {
       is_match_blocked: { Args: { target_match: string }; Returns: boolean }
       is_match_participant: { Args: { target_match: string }; Returns: boolean }
       is_photo_approved: { Args: { p_path: string }; Returns: boolean }
+      is_photo_of_profile: {
+        Args: { p_owner: string; p_path: string }
+        Returns: boolean
+      }
       is_photo_visible_to: { Args: { p_path: string }; Returns: boolean }
       is_subscription_active: { Args: { p_user: string }; Returns: boolean }
       log_user_event: {
@@ -1105,20 +1110,15 @@ export type Database = {
         Args: { p_accept: boolean; p_match_id: string }
         Returns: Json
       }
-      review_verification:
-        | {
-            Args: { approve: boolean; reason?: string; verification_id: string }
-            Returns: undefined
-          }
-        | {
-            Args: {
-              approve: boolean
-              p_reviewer?: string
-              reason?: string
-              verification_id: string
-            }
-            Returns: undefined
-          }
+      review_verification: {
+        Args: {
+          approve: boolean
+          p_reviewer?: string
+          reason?: string
+          verification_id: string
+        }
+        Returns: undefined
+      }
       run_retention_job: { Args: never; Returns: Json }
       set_date_intent: {
         Args: { p_intent: boolean; p_match_id: string }

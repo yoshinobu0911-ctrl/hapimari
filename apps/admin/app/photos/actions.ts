@@ -19,8 +19,9 @@ export async function approvePhoto(formData: FormData) {
 }
 
 /**
- * 却下: 表示対象から外し、本人の photo_urls からも取り除く
- * （本人の画面が「写真なし」になり、別の写真の再アップロードを促せる）
+ * 却下: 表示対象から外し、本人の photo_urls からも取り除き、
+ * 画像の実体も削除する（発行済みの署名URL(1時間)を即座に無効化するため。
+ * オブジェクトが残っていると却下後も既存の署名URLで閲覧できてしまう）
  */
 export async function rejectPhoto(formData: FormData) {
   await assertAdminAuth();
@@ -33,6 +34,12 @@ export async function rejectPhoto(formData: FormData) {
     .update({ status: 'rejected', reviewed_at: new Date().toISOString() })
     .eq('path', path);
   if (error) throw new Error(`却下に失敗しました: ${error.message}`);
+
+  // seed の外部URL（http〜）はバケットに実体が無いため削除対象外
+  if (!/^https?:\/\//.test(path)) {
+    const { error: removeError } = await supabaseAdmin.storage.from('photos').remove([path]);
+    if (removeError) throw new Error(`画像の削除に失敗しました: ${removeError.message}`);
+  }
 
   const { data: profile } = await supabaseAdmin
     .from('profiles')

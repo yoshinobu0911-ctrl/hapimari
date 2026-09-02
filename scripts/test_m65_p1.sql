@@ -136,11 +136,13 @@ begin
   end;
   perform register_photo_for_review(v_m2::text || '/test.jpg');
 end $$;
-select case when count(*) = 1 then 'PASS: 本人パス登録OK・審査中でも本人には見える' else 'FAIL' end
-from get_approved_photo_paths(array[:'male2_id' || '/test.jpg']);
+-- 2026-09-02: get_approved_photo_paths は利用者から revoke 済み（未使用の承認照会オラクル）。
+-- 現行設計の経路（photo_reviews の本人SELECT / is_photo_of_profile）で同じ性質を検証する
+select case when count(*) = 1 then 'PASS: 本人パス登録OK・審査状況は本人が閲覧できる' else 'FAIL' end
+from photo_reviews where path = :'male2_id' || '/test.jpg' and user_id = :'male2_id';
 select set_config('request.jwt.claims', json_build_object('sub', :'female_id', 'role', 'authenticated')::text, true);
-select case when count(*) = 0 then 'PASS: 未承認写真は他人から見えない' else 'FAIL' end
-from get_approved_photo_paths(array[:'male2_id' || '/test.jpg']);
+select case when not is_photo_of_profile(:'male2_id' || '/test.jpg', :'male2_id'::uuid)
+            then 'PASS: 未承認写真は他人から見えない' else 'FAIL' end;
 reset role;
 
 \echo '=== T9: 三点測位シミュレーション（3観測しても帯域+固定ジッターで自宅特定不能） ==='

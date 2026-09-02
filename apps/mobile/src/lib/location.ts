@@ -49,5 +49,8 @@ export async function syncMyLocation(_myId: string): Promise<boolean> {
   const loc = await fetchRoundedLocation();
   if (!loc) return false;
   const { error } = await supabase.rpc('set_my_location', { p_lat: loc.lat, p_lng: loc.lng });
-  return !error;
+  if (!error) return true;
+  // 更新制限（30分間隔・1日8回）による拒否は「座標がDBに保存済みで距離機能は使える」
+  // 正常系。false にすると開き直しのたびに距離ソートが失われる（レビュー2回目 must#8）
+  return /too_frequent|daily_limit/.test(error.message);
 }

@@ -21,10 +21,11 @@ function timingSafeEqual(a: string, b: string): boolean {
 export async function assertAdminAuth(): Promise<void> {
   const password = process.env.ADMIN_PASSWORD;
   if (!password) {
-    if (process.env.NODE_ENV === 'production') {
-      throw new Error('ADMIN_PASSWORD が未設定のため操作を拒否しました。');
+    // middleware と同じ方針: 明示フラグ + 非production の両方が揃わない限り拒否する
+    if (process.env.ADMIN_ALLOW_INSECURE === '1' && process.env.NODE_ENV !== 'production') {
+      return;
     }
-    return; // 開発中は素通し（middleware と同じ方針）
+    throw new Error('ADMIN_PASSWORD が未設定のため操作を拒否しました。');
   }
   const authorization = (await headers()).get('authorization');
   if (authorization?.startsWith('Basic ')) {

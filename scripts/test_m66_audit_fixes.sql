@@ -66,6 +66,9 @@ reset role;
 
 \echo '--- T1-d: 未課金男性は読み取り(get_date_status)は可・自動メッセージ挿入は不可 ---'
 update profiles set status = 'active' where id = :'female_id';
+-- M7.1以降、課金の正は subscriptions テーブル（profiles.subscription_active は派生値）。
+-- 「未課金」を作るには subscriptions の行も消す必要がある（2026-09-02 テスト追随）
+delete from subscriptions where user_id = :'male_id';
 update profiles set subscription_active = false, is_verified = true where id = :'male_id';
 select set_config('request.jwt.claims', json_build_object('sub', :'male_id', 'role','authenticated')::text, true);
 set local role authenticated;

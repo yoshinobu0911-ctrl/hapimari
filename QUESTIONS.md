@@ -116,3 +116,16 @@
   §8.1 が同ロジックを packages/shared の Vitest 対象に指定しているため、
   **変換の純粋関数は `packages/shared/src/discover_filters.ts`** に置き、
   mobile 側の `discover-query.ts` は PostgREST への適用のみの薄い層とした（設計意図どおりテスト可能）。
+
+### Q20. `apps/admin/lib/supabase-admin.ts` への `import 'server-only'`（2026-09-02・非ブロッカー）
+- レビュー指摘（PR#1 コメント3651267595・P3提案）。service_role キーを持つファイルの
+  クライアント側import をビルド時に検出できるようになる。
+- **`server-only` パッケージが未導入で、依存追加はオーナー承認が必要**なため見送り中。
+- 承認いただければ `pnpm add server-only --filter @hapimari/admin` + import 1行で対応可。
+
+### Q21. ローカルDBの残骸データ1件の修正（2026-09-02・非ブロッカー・承認待ち）
+- ローカルDBに「匿名化済みなのに status='active'」の行が1件あり（nickname='退会済み'・
+  birth_date=1900年・過去の手動テストの残骸）。このせいで test_m65_p1 のage検査が
+  FAILする（コード起因ではない。本番には存在しない）。
+- データ上書きにあたるため停止中。承認後に次の1行を実行:
+  `update profiles set status = 'withdrawn', withdrawn_at = coalesce(withdrawn_at, anonymized_at) where anonymized_at is not null and status = 'active';`

@@ -19,21 +19,12 @@
 <!-- 中断しても再開できるように、今どのファイル・どの作業の途中かを書く。 -->
 - （なし）
 
-## 📋 TODO（次にやること）
-<!-- 優先度順。着手→In Progress、完了→Done へ移動。 -->
-- [ ] 【オーナー確認待ち】**PR #1へのレビュー返信の投稿**（2回目レビューmust6件+未対応4件の修正完了報告）。ドラフト: `docs/review/2026-09-02_レビュアー返信文.md`。全指摘の棚卸し表: `docs/review/2026-09-02_指摘棚卸し.md`（未対応4件の残タスクも記載）
-- [ ] 【オーナー承認待ち・1行】ローカルDB残骸データの修正（QUESTIONS.md Q21。test_m65のFAIL 1件の原因）と、`server-only` の依存追加（Q20）
-- [ ] 【オーナー待ち・最重要】**出会い系サイト規制法の届出**（行政書士面談・申請）。`docs/legal/age_verification_description.md` を面談時に渡す。受理まで2週間〜1ヶ月＝9/14公開の最大の制約
-- [ ] 【要オーナー決定】**アプリ本体の本番URL**（届出書に記載が必要。現状アプリは未デプロイでURL未確定。提案は `app.happymarry.jp` — `age_verification_description.md` §6。決定後のDNS・Vercel設定はエージェント作業）
-- [ ] 【要オーナー判断・センシティブ領域】**更新3日前のメール事前通知が完全未実装**（launch_checklist ②-21）。アプリ内解約導線は実装済み。メール送信には外部サービス（Resend等）の追加が必要になる可能性があり、SPEC §8の「メール送信はSupabase Auth標準のみ」からの逸脱になるため要承認
-- [ ] 【提案待ち・センシティブ領域】**写真のAIモデレーション導入**（オーナー方針: 人力＋AIのハイブリッドで、Claude/ChatGPT/GeminiいずれかのAPIを使う）。要件定義・プロバイダ選定・実装コスト（画像解析APIの料金発生）を短い設計提案として次セッションで提示すること。`apps/admin/lib/photo-ai.ts` に差し込み口あり
-- [ ] 【設計提案待ち・センシティブ領域】**「スーパーいいね」機能（一言メッセージ付き）の新規実装**。2026-08-27オーナー決定: 暴言・誹謗中傷は新規NGワード辞書（fraud_words.tsとは別枠）で送信自体を拒否する方式（案A）。SPEC.mdに無い新機能かついいね/メッセージ機能に触れるため、着手時はCLAUDE.md §4の設計提案（目的・変更範囲・リスク）を先に提示してから実装すること
-- [ ] 【オーナー待ち】**M8 実音声の疎通確認**: Agoraアカウント作成（設計書§8の手順）→ App ID / App Certificate をチャットで共有 → `.env` 設定して `docs/acceptance/M8.md` §B を実施（2ブラウザで通話・マイク拒否・期限切断・ログ）
-- [ ] M8の後続: ネイティブ（iOS/Android）の通話対応（react-native-agora + Expo開発ビルド。ストア配信準備と同時に。9/14のWeb先行公開には不要と設計書に明記済み）
-- [ ] 【オーナー待ち】**M7.2 の実決済テスト**（Stripeテストキーを `supabase/functions/.env` に設定後、`docs/design/M7_2_payment_ui_design.md` §12 の手順で §11-(7)〜(15)(18) を実施）→ 結果を `docs/acceptance/M7_2.md` §B に記入
+## 📋 TODO → `tasks.md` へ移設（2026-09-02）
+未完了タスクの一覧は `tasks.md` を参照。ここには置かない（二重管理防止）。10件のTODOを文言そのまま移設済み。
 
 ## ✅ 完了したこと（Done）
 <!-- 新しいものを上に。日付(YYYY-MM-DD)とツール名を添える。 -->
+- 2026-09-03 (Claude): **PR #1のレビュー指摘12スレッドすべてに返信を投稿**（オーナー指示）。satoman0703さん2回目レビュー8件＋boooleonardoさん7/18分で8/27に誤って対応済みと報告した4件の訂正。本文は `docs/review/2026-09-02_レビュアー返信文.md` のとおり。投稿前に12件のコメントIDの実在・既存返信なし・参照コミット d1fbcb7 のpush済みを確認。投稿後に本文の文字化けなしをAPIで再取得して確認。残り: レビュアーへのチャット一報はオーナー作業（`docs/review/2026-09-02_レビュアー返信_チャット用.md`）
 - 2026-09-02 (Claude): **PR #1レビュー指摘10件（2回目must6件+8/27返信で誤って対応済みと報告した4件）を一括修正**（コミット d1fbcb7）。①review_verificationのACL修復（利用者が自分を承認できた）②写真なりすまし（書込トリガ+所有者検証）③承認済みパス上書き（UPDATE/DELETEポリシー撤去。**敵対的検証でDELETE→再アップ迂回を発見し同時に閉鎖**）④位置更新の行ロック⑤is_blocked_between revoke+**全関数ACL総点検（anon実行可を0件に）**⑥voice_profile_url封鎖⑦admin防御強化（ADMIN_ALLOW_INSECURE方式・ローカルでは.envへの設定が必要に）⑧too_frequentの距離ソート消失⑨p_area/labelのNGワード検証⑩相互いいねのアドバイザリロック。検証: 攻撃再現20件+並列実測2件PASS・Vitest 88・lint/tsc 0・既存SQLスイート回帰（test_m65/m66は設計変更への追随修正込み）。レビュー導線: `supabase/schema.generated.sql`（スキーマsnapshot新設）・`scripts/run_sql_tests.sh`（一括実行）・受け入れ記録 `docs/acceptance/2026-09-02_レビュー第2弾対応.md`
 - 2026-08-27 (Claude): **UI刷新の残り5画面を移行完了**（オーナー承認A=通話は最小限）。likes（Screen/Card/EmptyState/SkeletonRow）・messages（Screen/EmptyState/SkeletonRow＋トークン）・discover（並び替えをChipへ。ヘッダー行は既にトークン化済みのため据え置き＝AppHeaderは戻る付きスタック画面用でタブ画面には不適と判断）・blocked（Card/AppButton sm/EmptyState/SkeletonRow）・call（typographyトークンのみ・ロジック不変）。コミット 444cc96〜94eba86。検証: biome 0 / tsc 0、Expo Web＋セッション注入で likes（読込/一覧）・messages（一覧/空）・discover（Chip）・blocked（空）を実描画確認。**未確認**: likesの空状態・blockedの一覧行（解除ボタン）・call画面（実通話が必要）。文言の軽微変更: 空状態を見出し＋説明に分割（messages「まだトークはありません」を見出しとして追加）
 - 2026-08-27 (Claude): **PR #1にレビュー依頼コメントを投稿**（launch_checklist ②-17完了）。1ヶ月放置されていた7月レビューへの返信＋7月以降の追加分（決済・通話）のサマリ。投稿前に全12件の技術的主張をワークフローで実コードと突き合わせ済み → https://github.com/yoshinobu0911-ctrl/hapimari/pull/1#issuecomment-5436248448

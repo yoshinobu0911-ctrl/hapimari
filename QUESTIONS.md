@@ -117,13 +117,15 @@
   **変換の純粋関数は `packages/shared/src/discover_filters.ts`** に置き、
   mobile 側の `discover-query.ts` は PostgREST への適用のみの薄い層とした（設計意図どおりテスト可能）。
 
-### Q20. `apps/admin/lib/supabase-admin.ts` への `import 'server-only'`（2026-09-02・非ブロッカー）
+### Q20. `apps/admin/lib/supabase-admin.ts` への `import 'server-only'`（2026-09-02・**2026-09-03 解決済み**）
+- 2026-09-03 オーナー承認 → `server-only@0.0.1` を @hapimari/admin に追加し、先頭に import 1行を追加。tsc 0 / biome 0 / `next build` のコンパイル段階は成功（ページデータ収集の失敗は環境変数未設定による既存事象で、追加前後で同一）。
 - レビュー指摘（PR#1 コメント3651267595・P3提案）。service_role キーを持つファイルの
   クライアント側import をビルド時に検出できるようになる。
 - **`server-only` パッケージが未導入で、依存追加はオーナー承認が必要**なため見送り中。
 - 承認いただければ `pnpm add server-only --filter @hapimari/admin` + import 1行で対応可。
 
-### Q21. ローカルDBの残骸データ1件の修正（2026-09-02・非ブロッカー・承認待ち）
+### Q21. ローカルDBの残骸データ1件の修正（2026-09-02・**2026-09-03 解決済み**）
+- 2026-09-03 オーナー承認。実際の行は `anonymized_at` が NULL だったため下記SQLでは0件ヒット。ID指定（29de6239…）で `status='withdrawn', withdrawn_at=now(), anonymized_at=now()` に更新（1行）。`bash scripts/run_sql_tests.sh` で全スイート PASS（FAIL 0件）を確認。
 - ローカルDBに「匿名化済みなのに status='active'」の行が1件あり（nickname='退会済み'・
   birth_date=1900年・過去の手動テストの残骸）。このせいで test_m65_p1 のage検査が
   FAILする（コード起因ではない。本番には存在しない）。

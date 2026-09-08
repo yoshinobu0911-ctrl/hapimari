@@ -1,3 +1,4 @@
+import 'server-only';
 import type { Database } from '@hapimari/shared/types';
 import { createClient } from '@supabase/supabase-js';
 

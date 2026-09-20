@@ -167,11 +167,11 @@ create table daily_stats (
 | R2 | is_verified=false のユーザーはメッセージ送信不可 | RLS + UI |
 | R3 | **廃止（2026-07-12 オーナー決定）**。子持ち関連の制限・除外は行わない。子ども情報はプロフィールに表示せず、has_children / understands_children は相性スコアの参考値としてのみ使用 | - |
 | R4 | 同一女性が24時間に受け取る「いいね」上限100件。超過分は翌日繰越表示（F-40簡易版）※2026-07-06 オーナー決定で20→100に変更 | Edge Function |
-| R5 | **廃止（2026-07-12 オーナー決定）**。通話・デートの相談ともマッチ成立直後から利用可（メッセージ数の条件なし。matches.call_unlocked 列は未使用） | - |
+| R5 | **廃止（2026-07-12 オーナー決定）**。メッセージ数の条件は無い（matches.call_unlocked 列は未使用）。**ただし2026-08-26 オーナー決定により、音声通話は双方の本人確認完了が前提**（`agora-token` が自分と相手の `is_verified` をサーバー側で検査し、未了なら403/410）。デートの相談は打診・回答そのものに本人確認の検査は無いが、両者合意時の自動メッセージ挿入が `can_caller_message()` を通るため、実質は本人確認（男性はさらに課金）が必要 | `supabase/functions/agora-token/index.ts` / `can_caller_message()` |
 | R6 | デート打診は両者 intent=true になるまで相手に一切通知しない | date_proposals |
 | R7 | デートプラン提案の時間帯は weekday_lunch / weekend_am を上位固定 | 提案ロジック |
 | R8 | メッセージ本文に金銭・投資・外部誘導ワード（辞書は `packages/shared/fraud_words.ts`、初期50語をエージェントが作成）を検知したら flagged=true + 受信者に注意バナー | DBトリガ or Edge Function |
-| R9 | 男性は subscription_active=false の場合、メッセージ閲覧のみ・送信不可（MVPはモック課金） | UI + RLS |
+| R9 | 男性は課金が無い場合、メッセージ閲覧のみ・送信不可。**MVPのモック課金は M7.1／M7.2（2026-08-19）で Stripe の本実装に置換済み**（RevenueCatは不採用）。判定は `profiles.subscription_active` 列の直参照ではなく `is_subscription_active(auth.uid())`（本人限定。他会員の課金状態は照会不可） | UI + RLS（`can_caller_message()` / `is_subscription_active()`） |
 | R10 | 検索デフォルトは「現在地から30km以内」（上限は10〜100km/無制限に変更可・位置未許可ペアは同一県を常に表示）。「県で選ぶ」「全国」も選択可 ※2026-07-07 オーナー決定で県+隣接県から変更 | 検索クエリ + 距離RPC |
 
 ## 5. 画面一覧（expo-router のルート）

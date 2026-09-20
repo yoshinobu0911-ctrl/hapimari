@@ -23,6 +23,12 @@ insert into matches (user_a, user_b)
 select id as match_id from matches
   where user_a = least(:'female_id'::uuid, :'male_id'::uuid)
     and user_b = greatest(:'female_id'::uuid, :'male_id'::uuid) \gset
+-- 2026-09-20（PR#1 指摘 4055523978）: 検証用マッチIDをロール切替前に退避しておく。
+-- do $$ ... $$ の中では psql 変数が展開されないため、temp table 経由で渡す。
+-- 旧版は認証ロールに切り替えたあと matches を引いており、RLSで0行になっても
+-- exception when others が拾って PASS になる構造だった。
+create temp table t_match as select :'match_id'::uuid as id;
+grant select on t_match to authenticated;
 
 \echo ''
 \echo '################ #1 凍結・退会ユーザーのデートRPC貫通 ################'
@@ -34,33 +40,59 @@ select case when set_date_intent(:'match_id'::uuid, true) is not null
             then 'PASS: 正常系は動作する' else 'FAIL' end;
 reset role;
 
-\echo '--- T1-b: 凍結すると同じ操作が拒否される（メッセージ挿入経路が閉じる） ---'
+\echo '--- T1-b: 凍結すると拒否される（理由が inactive_account であることまで確認） ---'
 update profiles set status = 'suspended' where id = :'female_id';
 select set_config('request.jwt.claims', json_build_object('sub', :'female_id', 'role','authenticated')::text, true);
 set local role authenticated;
 do $$
 declare mid uuid;
 begin
-  select id into mid from matches order by created_at limit 1;
-  perform set_date_intent(mid, true);
-  raise notice 'FAIL: 凍結ユーザーがデートRPCを実行できた';
-exception when others then
-  raise notice 'PASS: 凍結ユーザーは拒否された (%)', sqlerrm;
+  select id into mid from t_match;
+  if mid is null then
+    raise notice 'FAIL(前提): 検証用マッチIDを取得できない';
+    return;
+  end if;
+  begin
+    perform set_date_intent(mid, true);
+    raise notice 'FAIL: 凍結ユーザーがデートRPCを実行できた';
+  exception
+    when raise_exception then
+      if sqlerrm = 'inactive_account' then
+        raise notice 'PASS: 凍結ユーザーは inactive_account で拒否された';
+      else
+        raise notice 'FAIL: 拒否はされたが理由が違う (%)', sqlerrm;
+      end if;
+    when others then
+      raise notice 'FAIL: 想定外の失敗 (% / %)', sqlstate, sqlerrm;
+  end;
 end $$;
 reset role;
 
-\echo '--- T1-c: 退会でも同様に拒否される ---'
+\echo '--- T1-c: 退会でも同様に拒否される（理由まで確認） ---'
 update profiles set status = 'withdrawn' where id = :'female_id';
 select set_config('request.jwt.claims', json_build_object('sub', :'female_id', 'role','authenticated')::text, true);
 set local role authenticated;
 do $$
 declare mid uuid;
 begin
-  select id into mid from matches limit 1;
-  perform set_date_intent(mid, true);
-  raise notice 'FAIL: 退会ユーザーがデートRPCを実行できた';
-exception when others then
-  raise notice 'PASS: 退会ユーザーは拒否された (%)', sqlerrm;
+  select id into mid from t_match;
+  if mid is null then
+    raise notice 'FAIL(前提): 検証用マッチIDを取得できない';
+    return;
+  end if;
+  begin
+    perform set_date_intent(mid, true);
+    raise notice 'FAIL: 退会ユーザーがデートRPCを実行できた';
+  exception
+    when raise_exception then
+      if sqlerrm = 'inactive_account' then
+        raise notice 'PASS: 退会ユーザーは inactive_account で拒否された';
+      else
+        raise notice 'FAIL: 拒否はされたが理由が違う (%)', sqlerrm;
+      end if;
+    when others then
+      raise notice 'FAIL: 想定外の失敗 (% / %)', sqlstate, sqlerrm;
+  end;
 end $$;
 reset role;
 
@@ -119,85 +151,127 @@ select case when count(*) > 1 then 'PASS: 他人が見える (' || count(*) || '
 reset role;
 
 \echo ''
-\echo '################ #3 三点測位の再現（前回見落とした多点観測の実測） ################'
-\echo '--- 攻撃モデル: 攻撃者が自位置を12方位×複数距離に詐称し、被害者への帯域距離を観測。'
-\echo '    セル内の被害者位置を区別できるなら三点測位で自宅圏が絞れる（＝FAIL）。'
+\echo '################ #3 三点測位の再現（本番RPC越しの多点観測） ################'
+\echo '--- 攻撃モデル: 攻撃者が自位置を12方位×2距離に詐称し、本番の get_profile_distances()'
+\echo '    が返す距離だけで被害者を区別できるかを観測する。区別できたら三点測位が成立＝不合格。'
+\echo '    ※ 2026-09-20改訂（PR#1 指摘 4055523946）: 旧版はテスト内で量子化してから帯域化を'
+\echo '       手計算していたため恒真だった。被害者の座標は生のまま置き、量子化は本番関数に委ねる。'
 
--- 被害者候補: 1つの5kmセル内に散らばる25点（東京都心付近）
-create temp table victim_pts as
-select 35.6800 + (i * 0.008) as vlat, 139.7600 + (j * 0.010) as vlng, i, j
-from generate_series(0,4) i, generate_series(0,4) j;
+-- 攻撃者（観測者）= 既出の女性。被害者 = 男性6名（同一セル3名 × 2セル）。
+create temp table atk as select :'female_id'::uuid as id;
 
--- 攻撃者の観測地点: 24点（多方位・多距離）
-create temp table attacker_pts as
-select 35.68 + 0.30 * cos(radians(a)) * (1 + 0.5*k) as alat,
-       139.76 + 0.36 * sin(radians(a)) * (1 + 0.5*k) as alng, a, k
-from generate_series(0, 330, 30) a, generate_series(0,1) k;
+create temp table victim_ids as
+select id, row_number() over (order by created_at) as n
+from profiles where gender = 'male' and status = 'active' order by created_at limit 6;
 
--- 各攻撃地点から、各被害者位置に対して返る帯域距離（本番と同じ量子化＋帯域化の合成）
-create temp table obs as
-select ap.a, ap.k, vp.i, vp.j,
-  (case
-     when km < 5 then 3
-     when km <= 30 then greatest(5, (round(km / 5) * 5))::int
-     when km <= 100 then (round(km / 10) * 10)::int
-     else 110 end) as band
-from attacker_pts ap, victim_pts vp,
-lateral (select _distance_km(ap.alat, ap.alng, _snap_lat(vp.vlat), _snap_lng(vp.vlng)) as km) d;
+-- 被害者の「生座標」。同一セル内で互いに3〜4km離す（量子化が無ければ区別できる距離）
+create temp table victim_raw as
+select v.id, v.n,
+  case when v.n <= 3 then 35.670   + (v.n - 1) * 0.0150
+       else                35.715   + (v.n - 4) * 0.0150 end as vlat,
+  case when v.n <= 3 then 139.7350 + (v.n - 1) * 0.0225
+       else                139.7900 + (v.n - 4) * 0.0200 end as vlng
+from victim_ids v;
 
--- 判定は「同一セルに属する被害者位置」を単位に行う（セル境界をまたぐ点が
--- 別の値を返すのは設計どおり＝漏洩ではない）。攻撃者が得られる情報がセルの
--- 識別までに留まる＝セル内の位置は原理的に区別できない、を検証する。
+-- 「同一セル」の定義は本番と同じ snap 関数で決める（観測値のほうは本番RPCから取る）
 create temp table victim_cells as
-select vp.i, vp.j, _snap_lat(vp.vlat) as clat, _snap_lng(vp.vlng) as clng from victim_pts vp;
+select vr.id, vr.n, _snap_lat(vr.vlat) as clat, _snap_lng(vr.vlng) as clng from victim_raw vr;
+
+\echo '--- T3-pre1: 前提（被害者6名が「2セル × 各3名」に配置されている） ---'
+select case when count(*) = 2 and min(c) = 3 and max(c) = 3
+            then 'PASS(前提): 2セル×各3名に配置できている'
+            else 'FAIL(前提): セル構成が想定外 (' || coalesce(string_agg(c::text, ','), '0セル') || ')' end
+from (select clat, clng, count(*) as c from victim_cells group by 1,2) x;
+
+insert into profile_locations (user_id, loc_lat, loc_lng)
+select id, vlat, vlng from victim_raw
+on conflict (user_id) do update set loc_lat = excluded.loc_lat, loc_lng = excluded.loc_lng;
+
+-- 観測地点: 12方位 × 2距離（約5.5km / 約16km）。この距離帯は5km刻みで返るため、
+-- 量子化が無ければ被害者間の3〜4kmの差が観測値に現れる（＝このテストに感度がある）
+create temp table attacker_pts as
+select 35.6925 + r * cos(radians(a)) as alat,
+       139.7725 + r * sin(radians(a)) as alng, a, (r * 1000)::int as k
+from generate_series(0, 330, 30) a, unnest(array[0.05, 0.15]) r;
+
+create temp table obs (a int, k int, victim uuid, distance_km int);
+
+-- 本番RPC越しに観測する（テスト側では量子化も帯域化も一切しない）
+create or replace function pg_temp.observe() returns void language plpgsql as $$
+declare pt record; atkid uuid := (select id from atk);
+begin
+  delete from obs;
+  for pt in select * from attacker_pts loop
+    insert into profile_locations (user_id, loc_lat, loc_lng) values (atkid, pt.alat, pt.alng)
+      on conflict (user_id) do update set loc_lat = excluded.loc_lat, loc_lng = excluded.loc_lng;
+    perform set_config('request.jwt.claims',
+      json_build_object('sub', atkid, 'role', 'authenticated')::text, true);
+    insert into obs(a, k, victim, distance_km)
+      select pt.a, pt.k, d.user_id, d.distance_km
+      from public.get_profile_distances((select array_agg(id) from victim_ids)) d;
+  end loop;
+end $$;
+
+select pg_temp.observe();
+
+\echo '--- T3-pre2: 前提（観測が空振りしていない＝24地点 × 6名 = 144件） ---'
+select case when count(*) = (select count(*) from attacker_pts) * (select count(*) from victim_ids)
+            then 'PASS(前提): ' || count(*) || ' 件の観測を取得'
+            else 'FAIL(前提): 観測 ' || count(*) || ' 件（期待 '
+                 || (select count(*) from attacker_pts) * (select count(*) from victim_ids) || ' 件）' end
+from obs;
 
 \echo '--- T3-a: 同一セル内では、どの観測地点からも被害者を区別できない ---'
 select case when count(*) = 0
-            then 'PASS: 全24観測地点で、同一セル内の被害者位置は完全に区別不能'
+            then 'PASS: 全' || (select count(*) from attacker_pts)
+                 || '観測地点で、同一セル内の被害者位置は完全に区別不能'
             else 'FAIL: ' || count(*) || ' 通りの(観測地点×セル)で区別できてしまう' end
 from (
   select o.a, o.k, c.clat, c.clng
-  from obs o join victim_cells c on c.i = o.i and c.j = o.j
+  from obs o join victim_cells c on c.id = o.victim
   group by o.a, o.k, c.clat, c.clng
-  having count(distinct o.band) > 1
+  having count(distinct o.distance_km) > 1
 ) leaks;
 
 \echo '--- T3-b: 観測ベクトルの種類数がセル数と一致（＝セルより細かく絞れない） ---'
 create temp table sigs as
-  select i, j, string_agg(band::text, ',' order by a, k) as sig from obs group by i, j;
+  select victim, string_agg(distance_km::text, ',' order by a, k) as sig from obs group by victim;
 select case when (select count(distinct sig) from sigs)
                  = (select count(*) from (select distinct clat, clng from victim_cells) c)
-            then 'PASS: 観測ベクトルは '
-                 || (select count(distinct sig) from sigs)
+            then 'PASS: 観測ベクトルは ' || (select count(distinct sig) from sigs)
                  || ' 種類＝セル数と一致（交点計算しても点に収束せずセルに留まる）'
             else 'FAIL: ' || (select count(distinct sig) from sigs) || ' 種類に分離（セル数 '
                  || (select count(*) from (select distinct clat, clng from victim_cells) c)
                  || ' より細かい）' end;
+
+\echo '--- T3-c: 別セルどうしは区別できる（測距機能そのものは生きている） ---'
+select case when count(distinct sig) > 1
+            then 'PASS: 別セルは異なる観測ベクトルを返す（機能は生きている）'
+            else 'FAIL: 全セルが同じ観測値＝距離機能が死んでいる' end
+from sigs;
 
 \echo '--- T3-b2: 到達可能な分解能（＝攻撃者に残る不確実性）の実測 ---'
 select 'セル寸法: 緯度 ' || round((0.045 * 111.0)::numeric, 1) || 'km × 経度 '
      || round((0.055 * 111.0 * cos(radians(35.68)))::numeric, 1) || 'km'
      || ' / 旧方式の分解能: 約1.1km（座標2桁丸め）' as 分解能;
 
-\echo '--- T3-c: 十分離れたセルは区別できる（機能として距離が意味を持つこと） ---'
-select case when count(distinct band) > 1 then 'PASS: 別セルは異なる距離を返す（機能は生きている）'
-            else 'FAIL: 距離が常に同じ＝機能不全' end
+\echo '--- T3-d(対照): 量子化を外すと同じテストが赤くなる（＝このテストが効いている証拠） ---'
+create or replace function public._snap_lat(p_lat double precision) returns double precision
+  language sql immutable as $x$ select p_lat $x$;
+create or replace function public._snap_lng(p_lng double precision) returns double precision
+  language sql immutable as $x$ select p_lng $x$;
+select pg_temp.observe();
+select case when count(*) > 0
+            then 'PASS(対照): 量子化を外すと ' || count(*)
+                 || ' 通りで区別できてしまう＝このテストは回帰を検知できる'
+            else 'FAIL(対照): 量子化を外しても漏洩を検知できない＝このテストは無効' end
 from (
-  select (case when km < 5 then 3 when km <= 30 then greatest(5,(round(km/5)*5))::int
-               when km <= 100 then (round(km/10)*10)::int else 110 end) as band
-  from (select _distance_km(35.68, 139.76, _snap_lat(v), _snap_lng(139.76)) as km
-        from unnest(array[35.70, 35.80, 35.95, 36.20]) v) x
-) y;
-
-\echo '--- T3-d: 旧方式（ペア固定ジッター）なら区別できてしまったことの対照確認 ---'
-select case when count(distinct band_old) > 1
-            then 'PASS(対照): 旧方式ではセル内で ' || count(distinct band_old) || ' 段階に分離＝三点測位が成立していた'
-            else 'INFO: 対照条件では差が出なかった' end
-from (
-  select (case when km < 5 then 3 when km <= 30 then greatest(5,(round(km/5)*5))::int
-               when km <= 100 then (round(km/10)*10)::int else 110 end) as band_old
-  from (select _distance_km(35.68, 139.90, vp.vlat, vp.vlng) as km from victim_pts vp) x
-) y;
+  select o.a, o.k, c.clat, c.clng
+  from obs o join victim_cells c on c.id = o.victim
+  group by o.a, o.k, c.clat, c.clng
+  having count(distinct o.distance_km) > 1
+) leaks;
+-- 対照で差し替えた snap 関数は rollback で元に戻る（同一トランザクション内のDDL）
 
 \echo ''
 \echo '################ #4 ブロック・退会後の写真署名URL ################'

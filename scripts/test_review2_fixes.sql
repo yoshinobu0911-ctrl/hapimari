@@ -181,11 +181,48 @@ from (
   from pg_proc p join pg_namespace n on n.oid = p.pronamespace
   where n.nspname = 'public' and has_function_privilege('anon', p.oid, 'execute')
 ) x;
-\echo '--- authenticated が実行できる関数の一覧（許可リストとの照合用） ---'
-select p.oid::regprocedure::text as authenticated_executable
+-- 2026-09-20（PR#1 指摘 4055523975）: 旧版は一覧を出すだけで照合するアサーションが無く、
+-- しかも run_sql_tests.sh のフィルタで画面にも出なかった。許可リストを明示して突合する。
+-- 許可リストの根拠: supabase/migrations/20260902100000_review2_security_fixes.sql:367-375 で
+-- 一括revoke後に明示grantした2本（is_blocked_between / is_match_participant）＋
+-- 利用者が画面から直接呼ぶ必要のあるRPC群。**この表に無い関数に authenticated 実行権が
+-- 付いたら赤くなる**のが狙い（新規migrationでの grant 漏れ・付けすぎの検知）。
+create temp table t6_allow(sig text);
+insert into t6_allow(sig) values
+  ('can_caller_message()'),
+  ('cancel_date(uuid)'),
+  ('get_date_status(uuid)'),
+  ('get_profile_distances(uuid[])'),
+  ('is_blocked_between(uuid,uuid)'),
+  ('is_caller_active()'),
+  ('is_match_blocked(uuid)'),
+  ('is_match_participant(uuid)'),
+  ('is_photo_of_profile(text,uuid)'),
+  ('is_photo_visible_to(text)'),
+  ('is_subscription_active(uuid)'),
+  ('log_user_event(text,uuid,jsonb)'),
+  ('propose_date_slot(uuid,jsonb,text)'),
+  ('register_photo_for_review(text)'),
+  ('respond_date_slot(uuid,boolean)'),
+  ('set_date_intent(uuid,boolean)'),
+  ('set_my_location(double precision,double precision)'),
+  ('submit_date_feedback(uuid,text)'),
+  ('withdraw_account()');
+
+create temp view t6_actual as
+select regexp_replace(p.oid::regprocedure::text, '^public\.', '') as sig
 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-where n.nspname = 'public' and has_function_privilege('authenticated', p.oid, 'execute')
-order by 1;
+where n.nspname = 'public' and has_function_privilege('authenticated', p.oid, 'execute');
+
+\echo '--- T6-b: 許可リスト外の関数に authenticated 実行権が付いていない ---'
+select case when count(*) = 0 then 'PASS: 許可リスト外で authenticated 実行可の関数は0件'
+            else 'FAIL: 許可リスト外が ' || count(*) || '件 (' || string_agg(sig, ', ') || ')' end
+from t6_actual where sig not in (select sig from t6_allow);
+
+\echo '--- T6-c: 許可リストの関数が実行可能なまま（revokeのやりすぎ検知） ---'
+select case when count(*) = 0 then 'PASS: 許可リスト19本はすべて実行可能'
+            else 'FAIL: 実行できなくなった関数が ' || count(*) || '件 (' || string_agg(sig, ', ') || ')' end
+from t6_allow where sig not in (select sig from t6_actual);
 
 \echo '=== T7: voice_profile_url は書き込み不可（#6） ==='
 select set_config('request.jwt.claims', json_build_object('sub', :'male_id', 'role', 'authenticated')::text, true);
@@ -275,13 +312,31 @@ where user_a = least(:'male_id'::uuid, :'female_id'::uuid)
   and user_b = greatest(:'male_id'::uuid, :'female_id'::uuid);
 
 \echo '=== T10: 回帰確認（一覧・距離・審査状況の主要経路） ==='
+-- 2026-09-20（PR#1 指摘 4055523971）: 旧版の count(*) >= 0 は恒真で、
+-- 0行返っても PASS だった。前提データをここで明示的に用意し、実数で突合する。
+select set_config('request.jwt.claims', '', true);
+update profiles set status = 'active' where id in (:'female_id', :'male2_id');
+insert into profile_locations (user_id, loc_lat, loc_lng) values
+  (:'female_id'::uuid, 35.6800, 139.7600),
+  (:'male2_id'::uuid,  35.7200, 139.8000)
+on conflict (user_id) do update set loc_lat = excluded.loc_lat, loc_lng = excluded.loc_lng;
+insert into photo_reviews (path, user_id, status)
+  values (:'female_id' || '/test_review2_t10.jpg', :'female_id'::uuid, 'pending')
+  on conflict (path) do update set status = 'pending';
+delete from blocks where (blocker = :'female_id' and blocked = :'male2_id')
+                      or (blocker = :'male2_id' and blocked = :'female_id');
+
 select set_config('request.jwt.claims', json_build_object('sub', :'female_id', 'role', 'authenticated')::text, true);
 set local role authenticated;
 select case when count(*) > 1 then 'PASS: profiles_public で他人が見える (' || count(*) || '行)'
             else 'FAIL: ' || count(*) || '行' end from profiles_public;
-select case when count(*) >= 0 then 'PASS: get_profile_distances が実行できる' end
+select case when count(*) = 1 and min(distance_km) > 0
+            then 'PASS: get_profile_distances が距離を1件返す（' || min(distance_km) || 'km帯）'
+            else 'FAIL: ' || count(*) || '件（期待1件）' end
 from get_profile_distances(array[:'male2_id'::uuid]);
-select case when count(*) >= 0 then 'PASS: photo_reviews の自分の行を閲覧できる' end
+select case when count(*) >= 1
+            then 'PASS: photo_reviews の自分の行を閲覧できる（' || count(*) || '件）'
+            else 'FAIL: 自分の行が0件＝RLSで自分の審査状況が見えない' end
 from photo_reviews where user_id = :'female_id';
 reset role;
 

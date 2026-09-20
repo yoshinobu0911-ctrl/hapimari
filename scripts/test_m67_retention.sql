@@ -12,6 +12,22 @@ select
   (select id from profiles where gender='male' and status='active' order by created_at limit 1) as m;
 select u as uid, m as mid from t \gset
 
+-- 2026-09-20（PR#1 指摘 4055523971）: 匿名化の検証が空振りしないよう、退会前に
+-- 「消えるはずのデータ」を必ず1件ずつ作っておく。旧版は対象ユーザーにメッセージが
+-- 無いと count(*)=0 側で PASS になり、「本文が消去された」ことを一度も確かめていなかった。
+-- なお auth.uid() が null の間は messages の資格トリガが発火しないため、
+-- ここ（ロール切替・claims設定より前）で挿入する。
+insert into matches (user_a, user_b)
+  select least(:'uid'::uuid, :'mid'::uuid), greatest(:'uid'::uuid, :'mid'::uuid)
+  on conflict do nothing;
+insert into messages (match_id, sender, body)
+  select mt.id, :'uid'::uuid, '退会テスト用の本文（匿名化で空になること）'
+  from matches mt
+  where mt.user_a = least(:'uid'::uuid, :'mid'::uuid)
+    and mt.user_b = greatest(:'uid'::uuid, :'mid'::uuid);
+-- 削除待ちキューの検証用に、既知のパスを1件だけ持たせる
+update profiles set photo_urls = array[:'uid' || '/test_m67_photo.jpg'] where id = :'uid';
+
 \echo ''
 \echo '################ 1. 退会時の台帳記録 ################'
 -- 退会でメールは解放されるため、退会前のアドレスを控えてから実行する
@@ -64,9 +80,16 @@ select case when count(*)=0 then 'PASS: 本人確認の申請記録は削除さ�
 from verifications where user_id = :'uid';
 select case when count(*)=0 then 'PASS: 写真の審査記録は削除された' else 'FAIL' end as "T3-e"
 from photo_reviews where user_id = :'uid';
-select case when count(*) >= 0 then 'PASS: 削除待ちキューに ' || count(*) || ' 件（Storage APIで実削除）' end as "T3-e2"
-from file_deletion_queue where deleted_at is null;
-select case when bool_and(body='') or count(*)=0 then 'PASS: メッセージ本文は消去された' else 'FAIL' end as "T3-f"
+select case when count(*) = 1
+            then 'PASS: 退会ユーザーの写真が削除待ちキューに積まれた（Storage APIで実削除）'
+            else 'FAIL: 対象パスがキューに無い（該当 ' || count(*) || ' 件）' end as "T3-e2"
+from file_deletion_queue
+where deleted_at is null and bucket_id = 'photos'
+  and path = :'uid' || '/test_m67_photo.jpg';
+select case when count(*) = 0 then 'FAIL: 検証対象のメッセージが0件＝テストが空振りしている'
+            when bool_and(body = '') then 'PASS: メッセージ本文は消去された（' || count(*) || '件すべて空）'
+            else 'FAIL: 本文が残っている（空でないものが '
+                 || count(*) filter (where body <> '') || '件）' end as "T3-f"
 from messages where sender = :'uid';
 
 \echo '--- 学習データ（誰と誰がマッチ・デート・通話したか）が残っているか ---'

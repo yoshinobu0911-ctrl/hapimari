@@ -1,4 +1,4 @@
-import { aiModerationAvailable } from '@/lib/photo-ai';
+import { aiModerationAvailable, analyzePhoto } from '@/lib/photo-ai';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { approvePhoto, rejectPhoto } from './actions';
 
@@ -65,8 +65,26 @@ export default async function PhotosPage() {
     : { data: [] };
   const nicknames = new Map((profileRows ?? []).map((p) => [p.id, p]));
 
+  // AI判定は未判定（ai_verdict が null）の写真だけ初回表示時に実行し、結果をDBへ保存する
+  // （2回目以降の表示は保存済みの判定を使い回し、毎回APIを呼ばない）。
   const pendingWithUrls = await Promise.all(
-    pending.map(async (r) => ({ ...r, imageUrl: await signedUrl(r.path) })),
+    pending.map(async (r) => {
+      const imageUrl = await signedUrl(r.path);
+      let aiVerdict = r.ai_verdict;
+      let aiDetail = r.ai_detail;
+      if (aiVerdict === null && imageUrl && aiModerationAvailable()) {
+        const verdict = await analyzePhoto(imageUrl);
+        if (verdict) {
+          aiVerdict = verdict.verdict;
+          aiDetail = verdict.detail;
+          await supabaseAdmin
+            .from('photo_reviews')
+            .update({ ai_verdict: aiVerdict, ai_detail: aiDetail })
+            .eq('path', r.path);
+        }
+      }
+      return { ...r, ai_verdict: aiVerdict, ai_detail: aiDetail, imageUrl };
+    }),
   );
 
   return (

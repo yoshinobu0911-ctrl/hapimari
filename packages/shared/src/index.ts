@@ -1,3 +1,4 @@
+export * from './abuse_words';
 export * from './adjacent_prefectures';
 export * from './call-provider';
 export * from './compatibility';

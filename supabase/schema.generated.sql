@@ -3753,7 +3753,9 @@ CREATE POLICY "当事者のみ閲覧可" ON "public"."messages" FOR SELECT TO "a
 
 
 
-CREATE POLICY "当事者・active・非ブロックのみ記録作成可" ON "public"."calls" FOR INSERT TO "authenticated" WITH CHECK (("public"."is_match_participant"("match_id") AND (NOT "public"."is_match_blocked"("match_id")) AND "public"."is_caller_active"()));
+CREATE POLICY "当事者・active・本人確認済み・非ブロックのみ" ON "public"."calls" FOR INSERT TO "authenticated" WITH CHECK (("public"."is_match_participant"("match_id") AND (NOT "public"."is_match_blocked"("match_id")) AND "public"."is_caller_active"() AND (EXISTS ( SELECT 1
+   FROM "public"."profiles" "p"
+  WHERE (("p"."id" = "auth"."uid"()) AND "p"."is_verified")))));
 
 
 

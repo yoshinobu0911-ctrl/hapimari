@@ -33,17 +33,28 @@
 
 ```bash
 supabase link --project-ref <プロジェクトID>
-supabase db push                 # migration 21本を適用
-supabase functions deploy like stripe-checkout stripe-webhook stripe-cancel
+supabase functions deploy like agora-token stripe-checkout stripe-webhook stripe-cancel
+supabase db push                 # migration をすべて適用（2026-09-26 時点で30本）
 ```
+
+> **順番が重要（2026-09-26 追記・統合表 I31）**: Edge Functions を先にデプロイし、そのあと `db push`。
+> `agora-token` は I28（ブロック判定が取れないときは発行しない）を含む版を、I29（ブロック照会の当事者限定）の migration より先に入れる。
+> アプリ（STEP 3）の配信は DB の反映より後（I08・I15 の新しい関数が DB に無いと一覧が読み込みエラーになる）。
+> ⚠️ 2026-09-26 時点の既知不具合: `like` 関数は `packages/shared/src/abuse_words.ts` の拡張子なし import のため Edge Runtime で起動しない（`docs/review/2026-09-26_夜間作業報告.md`）。**解消してからデプロイすること。**
 
 **シークレットの設定**（値は中村さんが用意・Gitには入れない）:
 
 ```bash
 supabase secrets set STRIPE_SECRET_KEY=... STRIPE_WEBHOOK_SECRET=... \
   STRIPE_PRICE_MALE_1M=... STRIPE_PRICE_MALE_3M=... STRIPE_PRICE_MALE_6M=... \
-  APP_BASE_URL=https://<取得したドメイン>
+  APP_BASE_URL=https://<取得したドメイン> \
+  AGORA_APP_ID=... AGORA_APP_CERTIFICATE=... \
+  MESSAGE_MODERATION_API_KEY=...
 ```
+
+- `AGORA_APP_ID`・`AGORA_APP_CERTIFICATE`: 通話トークンの発行に必須（アプリ側には置かない）。`AGORA_TOKEN_TTL_SECONDS` は任意（既定 1860 秒＝30分＋猶予1分）。
+- `MESSAGE_MODERATION_API_KEY`: いいねの一言メッセージの AI 判定（未設定なら固定辞書だけで判定）。
+- 一覧の正本は `supabase/functions/.env.example`。
 
 > ⚠️ **シードデータ（テスト用の20人）は本番に入れない。** 本番は会員ゼロから始めます。
 

@@ -1,5 +1,9 @@
 import { type NextRequest, NextResponse } from 'next/server';
-import { allowsInsecureWithoutPassword, isValidBasicAuth } from './lib/basic-auth';
+import {
+  allowsInsecureWithoutPassword,
+  isUnverifiedHttpsInProduction,
+  isValidBasicAuth,
+} from './lib/basic-auth';
 
 // 管理画面全体をBasic認証で保護する（監査P0-1対応 + レビュー2回目 must#7 対応）。
 // ADMIN_PASSWORD 未設定時は環境を問わず503で全遮断する。
@@ -17,9 +21,11 @@ function withSecurityHeaders(response: NextResponse): NextResponse {
 }
 
 export function middleware(request: NextRequest) {
-  // 本番でhttpアクセスは拒否（Basic認証のパスワードを平文で流させない）
-  const proto = request.headers.get('x-forwarded-proto');
-  if (process.env.NODE_ENV === 'production' && proto !== null && proto !== 'https') {
+  // 本番で HTTPS と確認できない要求は拒否（Basic認証のパスワードを平文で流させない）。
+  // I35: 旧実装はヘッダ欠落を素通ししていた。欠落も拒否する（前提は lib/basic-auth.ts の説明）
+  if (
+    isUnverifiedHttpsInProduction(request.headers.get('x-forwarded-proto'), process.env.NODE_ENV)
+  ) {
     return withSecurityHeaders(new NextResponse('httpsでアクセスしてください。', { status: 403 }));
   }
 

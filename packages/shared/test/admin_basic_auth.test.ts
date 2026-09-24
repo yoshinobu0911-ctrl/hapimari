@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   allowsInsecureWithoutPassword,
+  isUnverifiedHttpsInProduction,
   isValidBasicAuth,
   timingSafeEqual,
 } from '../../../apps/admin/lib/basic-auth';
@@ -44,5 +45,22 @@ describe('timingSafeEqual / allowsInsecureWithoutPassword（I18）', () => {
     ).toBe(false);
     expect(allowsInsecureWithoutPassword({ NODE_ENV: 'development' })).toBe(false);
     expect(allowsInsecureWithoutPassword({ ADMIN_ALLOW_INSECURE: 'true' })).toBe(false);
+  });
+});
+
+describe('isUnverifiedHttpsInProduction（I35: 本番で HTTPS と確認できない要求を拒否）', () => {
+  it('本番では https だけ通し、http・欠落・空・不明な値は拒否', () => {
+    expect(isUnverifiedHttpsInProduction('https', 'production')).toBe(false);
+    expect(isUnverifiedHttpsInProduction('HTTPS', 'production')).toBe(false);
+    expect(isUnverifiedHttpsInProduction('https, http', 'production')).toBe(false);
+    expect(isUnverifiedHttpsInProduction('http', 'production')).toBe(true);
+    expect(isUnverifiedHttpsInProduction(null, 'production')).toBe(true);
+    expect(isUnverifiedHttpsInProduction('', 'production')).toBe(true);
+    expect(isUnverifiedHttpsInProduction('http, https', 'production')).toBe(true);
+  });
+
+  it('本番以外では判定しない（ローカル開発は http のまま使える）', () => {
+    expect(isUnverifiedHttpsInProduction(null, 'development')).toBe(false);
+    expect(isUnverifiedHttpsInProduction('http', undefined)).toBe(false);
   });
 });

@@ -45,3 +45,19 @@ export function allowsInsecureWithoutPassword(env: {
 }): boolean {
   return env.ADMIN_ALLOW_INSECURE === '1' && env.NODE_ENV !== 'production';
 }
+
+/**
+ * 本番で HTTPS と確認できない要求か（I35）。x-forwarded-proto が https 以外、または**欠落**なら true。
+ * 前提（2026-09-26 に Vercel 公式ドキュメントで確認）: Vercel の CDN は HTTP の要求を必ず 308 で
+ * HTTPS へ転送し（無効化不可）、関数には x-forwarded-proto を付けて渡す（本番は通常 https）。
+ * したがって正規の要求でこのヘッダが欠けることは無く、欠落は想定外の経路として拒否する。
+ */
+export function isUnverifiedHttpsInProduction(
+  forwardedProto: string | null,
+  nodeEnv: string | undefined,
+): boolean {
+  if (nodeEnv !== 'production') return false;
+  // 複数のプロキシを経た場合に備え、先頭（クライアントに最も近い）値で判定する
+  const first = forwardedProto?.split(',')[0]?.trim().toLowerCase();
+  return first !== 'https';
+}

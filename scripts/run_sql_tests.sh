@@ -29,6 +29,7 @@ SUITES=(
   "test_review2_fixes:23"
   "test_m73_payment_reconciliation:9"
   "test_i08_latest_messages:11"
+  "test_p2_photo_viewer_active:21"
 )
 FAIL_TOTAL=0
 

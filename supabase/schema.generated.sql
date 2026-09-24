@@ -1106,15 +1106,16 @@ CREATE OR REPLACE FUNCTION "public"."is_photo_of_profile"("p_path" "text", "p_ow
     LANGUAGE "sql" STABLE SECURITY DEFINER
     SET "search_path" TO 'public'
     AS $$
-  select exists (
-    select 1 from photo_reviews pr
-    join profiles owner on owner.id = pr.user_id
-    where pr.path = p_path
-      and pr.user_id = p_owner            -- 所有者の一致（なりすまし防止の本体）
-      and pr.status = 'approved'
-      and owner.status = 'active'
-      and not public.is_blocked_between(auth.uid(), pr.user_id)
-  );
+  select public.is_caller_active()   -- 追加
+     and exists (
+       select 1 from photo_reviews pr
+       join profiles owner on owner.id = pr.user_id
+       where pr.path = p_path
+         and pr.user_id = p_owner          -- 所有者の一致（なりすまし防止の本体）
+         and pr.status = 'approved'
+         and owner.status = 'active'
+         and not public.is_blocked_between(auth.uid(), pr.user_id)
+     );
 $$;
 
 
@@ -1125,14 +1126,15 @@ CREATE OR REPLACE FUNCTION "public"."is_photo_visible_to"("p_path" "text") RETUR
     LANGUAGE "sql" STABLE SECURITY DEFINER
     SET "search_path" TO 'public'
     AS $$
-  select exists (
-    select 1 from photo_reviews pr
-    join profiles owner on owner.id = pr.user_id
-    where pr.path = p_path
-      and pr.status = 'approved'
-      and owner.status = 'active'
-      and not public.is_blocked_between(auth.uid(), pr.user_id)
-  );
+  select public.is_caller_active()   -- 追加: 閲覧者 status='active'（未作成・凍結・退会・匿名化済みは false）
+     and exists (
+       select 1 from photo_reviews pr
+       join profiles owner on owner.id = pr.user_id
+       where pr.path = p_path
+         and pr.status = 'approved'
+         and owner.status = 'active'
+         and not public.is_blocked_between(auth.uid(), pr.user_id)
+     );
 $$;
 
 
@@ -3695,7 +3697,7 @@ ALTER TABLE "storage"."migrations" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "storage"."objects" ENABLE ROW LEVEL SECURITY;
 
 
-CREATE POLICY "photos_本人または可視な承認済みのみ読み取り" ON "storage"."objects" FOR SELECT TO "authenticated" USING ((("bucket_id" = 'photos'::"text") AND ((("storage"."foldername"("name"))[1] = ("auth"."uid"())::"text") OR "public"."is_photo_visible_to"("name"))));
+CREATE POLICY "photos_本人または可視な承認済みのみ読み取り" ON "storage"."objects" FOR SELECT TO "authenticated" USING ((("bucket_id" = 'photos'::"text") AND ((("storage"."foldername"("name"))[1] = ("auth"."uid"())::"text") OR (( SELECT "public"."is_caller_active"() AS "is_caller_active") AND "public"."is_photo_visible_to"("name")))));
 
 
 

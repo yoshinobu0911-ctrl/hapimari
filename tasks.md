@@ -5,7 +5,7 @@
 > 運用ルールは `C:\Users\haosh\dev\AGENTS.md` の「作業ログの記録ルール」。
 > 停止を要するブロッカーは `QUESTIONS.md`、マイルストーン受け入れは `docs/acceptance/M{n}.md`（役割分担は progress.md 冒頭を参照）。
 
-最終更新: 2026-09-09 / Claude Code
+最終更新: 2026-09-24 / Claude Code
 
 ## 🚧 進行中（In Progress）
 
@@ -15,6 +15,8 @@
 
 （2026-09-02 に `progress.md` から移設。文言は原文のまま）
 
+- [ ] 【最優先・別セッション】**PR #1 第3弾レビュー（satoman0703さん・9/20〜21・26件／must 8件）が未返信・未対応**。「退会しても Stripe の課金が続く」（事実確認済み）を含む。開始指示書: `docs/handoff/PR1第3弾レビュー対応_開始プロンプト.md`
+- [ ] 【オーナー作業】外部エンジニアからの質問（レビュー範囲・納品方法・納期）に返信。依頼書: `docs/review/REVIEW_REQUEST.md`（納期 10/8 は仮置き）
 - [ ] 【オーナー作業】レビュアー2名へチャットで一報（GitHub返信は投稿済み）。文面: `docs/review/2026-09-02_レビュアー返信_チャット用.md`
 - [ ] 【オーナー待ち・最重要】**出会い系サイト規制法の届出**（行政書士面談・申請）。`docs/legal/age_verification_description.md` を面談時に渡す。受理まで2週間〜1ヶ月＝9/14公開の最大の制約
 - [ ] 【要オーナー決定】**アプリ本体の本番URL**（届出書に記載が必要。現状アプリは未デプロイでURL未確定。提案は `app.happymarry.jp` — `age_verification_description.md` §6。決定後のDNS・Vercel設定はエージェント作業）

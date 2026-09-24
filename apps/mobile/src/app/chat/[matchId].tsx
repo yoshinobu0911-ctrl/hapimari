@@ -207,6 +207,8 @@ export default function Chat() {
 
   const partner = partnerQuery.data;
   const isVerified = myProfile?.is_verified === true;
+  // 相手の本人確認状態（profiles_public の既存列。公開範囲の変更なし）
+  const partnerVerified = partner?.is_verified === true;
   // R9: 男性は課金しないと送信不可（閲覧は可・M6）
   const needsSubscription = myProfile?.gender === 'male' && myProfile?.subscription_active !== true;
 
@@ -221,8 +223,8 @@ export default function Chat() {
         right={
           partner ? (
             <View style={styles.headerActions}>
-              {/* 通話は本人確認の承認後のみ（2026-08-26 決定。サーバー側でも二重に拒否される） */}
-              {isVerified ? (
+              {/* 通話は双方の本人確認の承認後のみ（2026-08-26 決定。agora-token の資格条件と同じ。サーバー側でも二重に拒否される） */}
+              {isVerified && partnerVerified ? (
                 <HeaderIconButton
                   name="call-outline"
                   label="音声通話"

@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { formatCallDuration, remainingCallSeconds } from '../src/call-provider';
+import {
+  callSetupFailureMessage,
+  formatCallDuration,
+  remainingCallSeconds,
+} from '../src/call-provider';
 import { CALL_MAX_DURATION_SECONDS } from '../src/constants';
 
 describe('remainingCallSeconds（30分=1800秒の自動切断境界）', () => {
@@ -43,5 +47,40 @@ describe('formatCallDuration', () => {
   it('負値・小数は安全に丸める', () => {
     expect(formatCallDuration(-5)).toBe('0:00');
     expect(formatCallDuration(61.9)).toBe('1:01');
+  });
+});
+
+describe('callSetupFailureMessage（agora-token の失敗応答から案内文を取り出す）', () => {
+  it('規約どおりの失敗応答は message をそのまま返す', () => {
+    expect(
+      callSetupFailureMessage({
+        ok: false,
+        error: 'not_verified',
+        message: '本人確認の完了後にご利用いただけます。',
+      }),
+    ).toBe('本人確認の完了後にご利用いただけます。');
+    expect(
+      callSetupFailureMessage({
+        ok: false,
+        error: 'partner_unavailable',
+        message: '現在おかけになれません。',
+      }),
+    ).toBe('現在おかけになれません。');
+  });
+
+  it('規約外の本文（ゲートウェイの英語エラー等）は null（画面は汎用文言へ）', () => {
+    const invalid: unknown[] = [
+      { message: 'Invalid JWT' },
+      { ok: true, message: 'x' },
+      { ok: false, message: '' },
+      { ok: false, message: '   ' },
+      { ok: false, message: 123 },
+      null,
+      'text',
+      [],
+    ];
+    for (const body of invalid) {
+      expect(callSetupFailureMessage(body)).toBeNull();
+    }
   });
 });

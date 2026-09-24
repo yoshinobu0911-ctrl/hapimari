@@ -19,9 +19,14 @@ export type CallEndReason =
   /** マイクの使用が許可されなかった（M8・Agora実装のみが送出する） */
   | 'mic_denied';
 
+/** 終了時の補足。userMessage はサーバーが返した利用者向け日本語（画面側で文言を作らない） */
+export interface CallEndDetail {
+  userMessage?: string;
+}
+
 export interface CallProviderEvents {
   onStateChange: (state: CallState) => void;
-  onEnded: (reason: CallEndReason) => void;
+  onEnded: (reason: CallEndReason, detail?: CallEndDetail) => void;
 }
 
 export interface CallHandle {
@@ -77,4 +82,17 @@ export function formatCallDuration(totalSeconds: number): string {
   const m = Math.floor(safe / 60);
   const s = safe % 60;
   return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+/**
+ * Edge Function の失敗応答本文 { ok:false, error, message } から利用者向け message を取り出す。
+ * 規約どおりの本文（ok === false かつ message が空でない文字列）以外は null。
+ * （ゲートウェイ等の規約外の本文を利用者へ見せないため）
+ */
+export function callSetupFailureMessage(body: unknown): string | null {
+  if (typeof body !== 'object' || body === null) return null;
+  const b = body as { ok?: unknown; message?: unknown };
+  if (b.ok !== false || typeof b.message !== 'string') return null;
+  const m = b.message.trim();
+  return m.length > 0 ? m : null;
 }

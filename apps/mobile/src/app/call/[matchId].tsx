@@ -1,4 +1,5 @@
 import {
+  type CallEndDetail,
   type CallEndReason,
   type CallHandle,
   type CallState,
@@ -44,6 +45,7 @@ export default function CallScreen() {
 
   const [callState, setCallState] = useState<CallState>('idle');
   const [endReason, setEndReason] = useState<CallEndReason | null>(null);
+  const [endMessage, setEndMessage] = useState<string | null>(null);
   const [startedAt, setStartedAt] = useState<number | null>(null);
   const [now, setNow] = useState(() => Date.now());
 
@@ -70,7 +72,9 @@ export default function CallScreen() {
   const partnerId = match ? (match.user_a === myId ? match.user_b : match.user_a) : null;
 
   const partnerQuery = useQuery({
-    queryKey: ['profile', partnerId],
+    // チャット/デート画面の ['profile', id]（select('*')）と列が違うため、キーを分ける。
+    // report-block の invalidate(['profile', userId]) は前方一致でこのキーにも効く
+    queryKey: ['profile', partnerId, 'call'],
     enabled: !!partnerId,
     queryFn: async () => {
       // M6.5: 他人のプロフィールは profiles_public ビュー経由
@@ -111,8 +115,10 @@ export default function CallScreen() {
           }
         }
       },
-      onEnded: (reason: CallEndReason) => {
-        setEndReason(timedOutRef.current ? 'timeout' : reason);
+      onEnded: (reason: CallEndReason, detail?: CallEndDetail) => {
+        const timedOut = timedOutRef.current;
+        setEndReason(timedOut ? 'timeout' : reason);
+        setEndMessage(timedOut ? null : (detail?.userMessage ?? null));
         const began = startedAtRef.current;
         if (isCaller && callRowIdRef.current && began != null) {
           const duration = Math.max(0, Math.floor((Date.now() - began) / 1000));
@@ -154,14 +160,15 @@ export default function CallScreen() {
     return () => clearInterval(timer);
   }, [callState, startedAt]);
 
-  // 終了後は少し待ってチャットへ戻る
+  // 終了後は少し待ってチャットへ戻る。
+  // サーバーの案内（本人確認前・利用不可など）を表示している間は、読み切れるよう自動では戻らない
   useEffect(() => {
-    if (callState !== 'ended') return;
+    if (callState !== 'ended' || endMessage) return;
     const timer = setTimeout(() => {
       if (router.canGoBack()) router.back();
     }, 2000);
     return () => clearTimeout(timer);
-  }, [callState, router]);
+  }, [callState, endMessage, router]);
 
   const elapsed = startedAt != null ? Math.floor((now - startedAt) / 1000) : 0;
   const remaining = startedAt != null ? remainingCallSeconds(startedAt, now) : 0;
@@ -181,7 +188,7 @@ export default function CallScreen() {
 
       <Text style={styles.state} testID="call-state">
         {callState === 'ended' && endReason
-          ? END_REASON_LABEL[endReason]
+          ? (endMessage ?? END_REASON_LABEL[endReason])
           : callState === 'connected'
             ? '通話中'
             : callState === 'calling'

@@ -24,13 +24,17 @@ import type {
   CallProvider,
   CallProviderEvents,
 } from '@hapimari/shared';
+import { callSetupFailureMessage } from '@hapimari/shared';
 import type { IAgoraRTCClient, IMicrophoneAudioTrack } from 'agora-rtc-sdk-ng';
 import { mockCallProvider } from '@/lib/call-provider-mock';
 import { supabase } from '@/lib/supabase';
 
-/** 準備段階（マイク・トークン）の失敗。reason が画面の終了メッセージになる */
+/** 準備段階（マイク・トークン）の失敗。reason が終了理由、userMessage はサーバーの案内文 */
 class CallSetupError extends Error {
-  constructor(readonly reason: CallEndReason) {
+  constructor(
+    readonly reason: CallEndReason,
+    readonly userMessage?: string,
+  ) {
     super(reason);
   }
 }
@@ -49,9 +53,19 @@ async function fetchCallToken(matchId: string): Promise<TokenResponse> {
     body: { matchId },
   });
   if (error) {
-    // 資格エラー（非当事者・ブロック等）・未設定・通信断はすべて「接続できない」扱い
+    // FunctionsHttpError: 4xx/5xx の本文に { ok:false, error, message }（like-api.ts と同型）。
+    // 通信断（FunctionsFetchError）は context が Response でないため汎用文言のまま
+    let userMessage: string | undefined;
+    const ctx = (error as { context?: Response }).context;
+    if (ctx && typeof ctx.json === 'function') {
+      try {
+        userMessage = callSetupFailureMessage(await ctx.json()) ?? undefined;
+      } catch {
+        // JSONでない応答は汎用文言へ
+      }
+    }
     console.warn('agora-token failed');
-    throw new CallSetupError('error');
+    throw new CallSetupError('error', userMessage);
   }
   return data as TokenResponse;
 }
@@ -157,8 +171,9 @@ async function startWithAudio(
   } catch (e) {
     // 相手を呼び出す前に終了（マイク拒否・トークン発行不可）
     const reason = e instanceof CallSetupError ? e.reason : 'error';
+    const userMessage = e instanceof CallSetupError ? e.userMessage : undefined;
     events.onStateChange('ended');
-    events.onEnded(reason);
+    events.onEnded(reason, userMessage ? { userMessage } : undefined);
     return { hangup: () => {} };
   }
 
@@ -172,10 +187,10 @@ async function startWithAudio(
         });
       }
     },
-    onEnded: (reason) => {
+    onEnded: (reason, detail) => {
       finished = true;
       void audio.dispose();
-      events.onEnded(overrideReason ?? reason);
+      events.onEnded(overrideReason ?? reason, overrideReason ? undefined : detail);
     },
   };
 

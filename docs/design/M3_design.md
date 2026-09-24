@@ -14,7 +14,7 @@
 
 | 項目 | 値 |
 |---|---|
-| リポジトリ | `C:\Users\haosh\dev\hapimari`（**必ずここで作業。理由は下記⚠1**） |
+| リポジトリ | `C:\Users\haosh\dev\hapimari`（本体。**日本語を含むパスでは作業しない。理由は下記⚠1**。AIごとの作業フォルダは `AGENTS.md` §13-1） |
 | モノレポ | pnpm workspaces + Turborepo（`apps/mobile`=Expo SDK 57, `apps/admin`=Next.js 16, `packages/shared`） |
 | DB | Supabaseローカル（`supabase start` 済み。Docker Desktop必須） |
 | Lint/Format | Biome 2.5（`pnpm exec biome check --write .`） |
@@ -25,7 +25,7 @@
 ### 1.2 ⚠ この環境特有の落とし穴（M0〜M2で実際に発生したもの）
 
 1. **日本語パス禁止**: Supabase CLI は日本語を含むパス（例: OneDriveのデスクトップ）で
-   **exit 0のままサイレントに失敗**する。作業は必ず `C:\Users\haosh\dev\hapimari` で行う。
+   **exit 0のままサイレントに失敗**する。作業は `C:\Users\haosh\dev\` 配下の英数字だけのパスで行う（本体 `hapimari` と、AIごとの作業フォルダ。`AGENTS.md` §13-1）。
 2. **PATHが通っていない**: シェルごとに
    `$env:Path = "C:\Program Files\nodejs;C:\Users\haosh\AppData\Roaming\npm;$env:Path"`（PowerShell）を先頭で実行すること。
 3. **新規テーブルにはGRANTが自動付与されない**: このローカルスタック（npm supabase 2.109）では

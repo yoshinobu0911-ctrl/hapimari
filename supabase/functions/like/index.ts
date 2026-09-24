@@ -22,6 +22,7 @@ import {
   validateLike,
   validateLikeSender,
 } from '../../../packages/shared/src/like_rules.ts';
+import { corsHeaders, json } from '../_shared/http.ts';
 
 // 暴力性を示唆するカテゴリ（OpenAI moderations の categories キー）。
 // 固定辞書（abuse_words.ts）の補完として、辞書に無い言い回しの暴力表現も検知する。
@@ -54,19 +55,6 @@ async function isMessageViolent(text: string, apiKey: string): Promise<boolean> 
   } catch {
     return false;
   }
-}
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-};
-
-function json(status: number, body: unknown): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-  });
 }
 
 interface ProfileRow {

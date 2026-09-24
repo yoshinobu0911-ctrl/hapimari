@@ -21,64 +21,20 @@
  * クライアントのタイマー（call/[matchId].tsx）は主にUX用で、こちらが最後の砦。
  */
 
-import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2';
 import { RtcRole, RtcTokenBuilder } from 'npm:agora-token@2.0.5';
 import { interpretBlockCheck } from '../_shared/call_token_rules.ts';
+import {
+  adminClient,
+  authenticate,
+  corsHeaders,
+  fail,
+  internalError,
+  json,
+  requiredEnv,
+} from '../_shared/http.ts';
 
 /** 30分（1800秒）＋接続・応答待ちの猶予60秒 */
 const DEFAULT_TOKEN_TTL_SECONDS = 1860;
-
-// ---- 汎用ヘルパ（_shared/stripe.ts と同型。Stripe SDK を読み込まないためここに持つ） ----
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-};
-
-function json(status: number, body: unknown): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-  });
-}
-
-function fail(status: number, error: string, message: string): Response {
-  return json(status, { ok: false, error, message });
-}
-
-function internalError(): Response {
-  return fail(500, 'internal', 'エラーが発生しました。時間をおいてお試しください。');
-}
-
-function requiredEnv(name: string): string {
-  const value = Deno.env.get(name);
-  if (!value) {
-    // 値そのものは絶対にログへ出さない（名前だけ）
-    throw new Error(`missing_env:${name}`);
-  }
-  return value;
-}
-
-function adminClient(): SupabaseClient {
-  return createClient(
-    // biome-ignore lint/suspicious/noUndeclaredEnvVars: Edge Runtimeが注入
-    Deno.env.get('SUPABASE_URL') ?? '',
-    // biome-ignore lint/suspicious/noUndeclaredEnvVars: Edge Runtimeが注入
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-  );
-}
-
-async function authenticate(admin: SupabaseClient, req: Request): Promise<{ id: string } | null> {
-  const token = (req.headers.get('Authorization') ?? '').replace('Bearer ', '');
-  if (!token) return null;
-  const {
-    data: { user },
-    error,
-  } = await admin.auth.getUser(token);
-  if (error || !user) return null;
-  return { id: user.id };
-}
 
 // ---- 本体 ----------------------------------------------------------------
 

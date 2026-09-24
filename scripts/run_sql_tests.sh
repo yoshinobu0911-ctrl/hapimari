@@ -26,10 +26,11 @@ SUITES=(
   "test_m65_p1:18"
   "test_m66_audit_fixes:17"
   "test_m67_retention:28"
-  "test_review2_fixes:23"
+  "test_review2_fixes:25"
   "test_m73_payment_reconciliation:9"
   "test_i08_latest_messages:11"
   "test_p2_photo_viewer_active:21"
+  "test_block_query_scope:20"
 )
 FAIL_TOTAL=0
 

@@ -13,6 +13,16 @@ SET client_min_messages = warning;
 SET row_security = off;
 
 
+CREATE SCHEMA IF NOT EXISTS "private";
+
+
+ALTER SCHEMA "private" OWNER TO "postgres";
+
+
+COMMENT ON SCHEMA "private" IS '内部判定専用。PostgREST/GraphQLに公開しない（config.toml api.schemas・本番 Exposed schemas に追加禁止）';
+
+
+
 CREATE SCHEMA IF NOT EXISTS "public";
 
 
@@ -37,6 +47,20 @@ CREATE TYPE "storage"."buckettype" AS ENUM (
 
 
 ALTER TYPE "storage"."buckettype" OWNER TO "supabase_storage_admin";
+
+
+CREATE OR REPLACE FUNCTION "private"."is_blocked_between"("a" "uuid", "b" "uuid") RETURNS boolean
+    LANGUAGE "sql" STABLE SECURITY DEFINER
+    SET "search_path" TO ''
+    AS $$
+  select exists (
+    select 1 from public.blocks bl
+    where (bl.blocker = a and bl.blocked = b) or (bl.blocker = b and bl.blocked = a)
+  );
+$$;
+
+
+ALTER FUNCTION "private"."is_blocked_between"("a" "uuid", "b" "uuid") OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."_age_band"("p_birth" "date") RETURNS "text"
@@ -124,7 +148,7 @@ begin
   if m.id is null or (m.user_a <> auth.uid() and m.user_b <> auth.uid()) then
     raise exception 'not_participant';
   end if;
-  if public.is_blocked_between(m.user_a, m.user_b) then
+  if private.is_blocked_between(m.user_a, m.user_b) then
     raise exception 'blocked';
   end if;
 
@@ -999,7 +1023,7 @@ begin
       and l.user_id <> uid
       and p.status = 'active'
       and p.gender is distinct from my_gender
-      and not public.is_blocked_between(uid, l.user_id);
+      and not private.is_blocked_between(uid, l.user_id);
 end;
 $$;
 
@@ -1033,17 +1057,37 @@ ALTER FUNCTION "public"."increment_message_count"() OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."is_blocked_between"("a" "uuid", "b" "uuid") RETURNS boolean
-    LANGUAGE "sql" STABLE SECURITY DEFINER
-    SET "search_path" TO 'public'
+    LANGUAGE "plpgsql" STABLE SECURITY DEFINER
+    SET "search_path" TO ''
     AS $$
-  select exists (
-    select 1 from blocks
-    where (blocker = a and blocked = b) or (blocker = b and blocked = a)
+declare
+  v_uid uuid := auth.uid();
+begin
+  -- blocks.blocker/blocked は NOT NULL。NULL を含む組は常にブロックなし。
+  -- service_role や Studio でビューを読んだとき（auth.uid() が NULL）に例外にしないため、先に判定する。
+  if a is null or b is null then
+    return false;
+  end if;
+  if v_uid is not null then
+    if v_uid <> a and v_uid <> b then
+      return false;          -- 第三者: blocks を読まずに false（有無と無関係＝区別不能）
+    end if;
+  elsif coalesce(auth.role(), '') <> 'service_role' then
+    raise exception 'forbidden' using errcode = '42501';   -- 利用者でも service_role でもない
+  end if;
+  return exists (
+    select 1 from public.blocks bl
+    where (bl.blocker = a and bl.blocked = b) or (bl.blocker = b and bl.blocked = a)
   );
+end;
 $$;
 
 
 ALTER FUNCTION "public"."is_blocked_between"("a" "uuid", "b" "uuid") OWNER TO "postgres";
+
+
+COMMENT ON FUNCTION "public"."is_blocked_between"("a" "uuid", "b" "uuid") IS 'I29: 当事者(auth.uid()∈{a,b})と service_role だけが実判定を得る。第三者は常に false、身元なしは forbidden(42501)。SQL 内部からは private.is_blocked_between を使う';
+
 
 
 CREATE OR REPLACE FUNCTION "public"."is_caller_active"() RETURNS boolean
@@ -1060,18 +1104,33 @@ ALTER FUNCTION "public"."is_caller_active"() OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."is_match_blocked"("target_match" "uuid") RETURNS boolean
-    LANGUAGE "sql" STABLE SECURITY DEFINER
-    SET "search_path" TO 'public'
+    LANGUAGE "plpgsql" STABLE SECURITY DEFINER
+    SET "search_path" TO ''
     AS $$
-  select exists (
-    select 1 from matches m
-    where m.id = target_match
-      and public.is_blocked_between(m.user_a, m.user_b)
-  );
+declare
+  v_uid uuid := auth.uid();
+  v_a uuid; v_b uuid;
+begin
+  if v_uid is null and coalesce(auth.role(), '') <> 'service_role' then
+    raise exception 'forbidden' using errcode = '42501';
+  end if;
+  select m.user_a, m.user_b into v_a, v_b from public.matches m where m.id = target_match;
+  if v_a is null then
+    return false;                               -- 存在しない（従来どおり false）
+  end if;
+  if v_uid is not null and v_uid <> v_a and v_uid <> v_b then
+    return false;                               -- 非当事者: 存在しない場合と同じ false
+  end if;
+  return private.is_blocked_between(v_a, v_b);
+end;
 $$;
 
 
 ALTER FUNCTION "public"."is_match_blocked"("target_match" "uuid") OWNER TO "postgres";
+
+
+COMMENT ON FUNCTION "public"."is_match_blocked"("target_match" "uuid") IS 'I29: 当事者と service_role のみ実判定。非当事者・不存在は false、身元なしは forbidden(42501)。RLS では必ず is_match_participant と AND で使う';
+
 
 
 CREATE OR REPLACE FUNCTION "public"."is_match_participant"("target_match" "uuid") RETURNS boolean
@@ -1114,7 +1173,7 @@ CREATE OR REPLACE FUNCTION "public"."is_photo_of_profile"("p_path" "text", "p_ow
          and pr.user_id = p_owner          -- 所有者の一致（なりすまし防止の本体）
          and pr.status = 'approved'
          and owner.status = 'active'
-         and not public.is_blocked_between(auth.uid(), pr.user_id)
+         and not private.is_blocked_between(auth.uid(), pr.user_id)
      );
 $$;
 
@@ -1133,7 +1192,7 @@ CREATE OR REPLACE FUNCTION "public"."is_photo_visible_to"("p_path" "text") RETUR
        where pr.path = p_path
          and pr.status = 'approved'
          and owner.status = 'active'
-         and not public.is_blocked_between(auth.uid(), pr.user_id)
+         and not private.is_blocked_between(auth.uid(), pr.user_id)
      );
 $$;
 
@@ -3731,6 +3790,10 @@ GRANT USAGE ON SCHEMA "storage" TO "authenticated";
 GRANT USAGE ON SCHEMA "storage" TO "service_role";
 GRANT ALL ON SCHEMA "storage" TO "supabase_storage_admin" WITH GRANT OPTION;
 GRANT ALL ON SCHEMA "storage" TO "dashboard_user";
+
+
+
+REVOKE ALL ON FUNCTION "private"."is_blocked_between"("a" "uuid", "b" "uuid") FROM PUBLIC;
 
 
 

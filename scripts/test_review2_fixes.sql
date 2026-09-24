@@ -188,6 +188,8 @@ from (
 -- 利用者が画面から直接呼ぶ必要のあるRPC群。**この表に無い関数に authenticated 実行権が
 -- 付いたら赤くなる**のが狙い（新規migrationでの grant 漏れ・付けすぎの検知）。
 -- 2026-09-26 I08: get_my_latest_messages を追加（画面から直接呼ぶ RPC）。19→20本。
+-- 2026-09-26 I29: is_blocked_between / is_match_blocked は当事者限定の入口として残す（ビュー・RLS が
+-- 利用者権限で呼ぶため）。内部判定は private スキーマ（T6-d/e で検査）。
 create temp table t6_allow(sig text);
 insert into t6_allow(sig) values
   ('can_caller_message()'),
@@ -225,6 +227,17 @@ from t6_actual where sig not in (select sig from t6_allow);
 select case when count(*) = 0 then 'PASS: 許可リスト20本はすべて実行可能'
             else 'FAIL: 実行できなくなった関数が ' || count(*) || '件 (' || string_agg(sig, ', ') || ')' end
 from t6_allow where sig not in (select sig from t6_actual);
+
+\echo '--- T6-d: 非公開スキーマ private の USAGE ---'
+select case when not has_schema_privilege('anon', 'private', 'USAGE')
+             and not has_schema_privilege('authenticated', 'private', 'USAGE')
+            then 'PASS: private の USAGE は anon/authenticated に無い' else 'FAIL: private の USAGE あり' end;
+\echo '--- T6-e: private の関数の実行権 ---'
+select case when count(*) >= 1 and count(*) filter (where has_function_privilege('anon', p.oid, 'execute')
+                  or has_function_privilege('authenticated', p.oid, 'execute')) = 0
+            then 'PASS: private の関数(' || count(*) || '本)は anon/authenticated 実行不可'
+            else 'FAIL: private 関数の実行権が不正' end
+from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'private';
 
 \echo '=== T7: voice_profile_url は書き込み不可（#6） ==='
 select set_config('request.jwt.claims', json_build_object('sub', :'male_id', 'role', 'authenticated')::text, true);

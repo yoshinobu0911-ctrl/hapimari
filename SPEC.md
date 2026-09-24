@@ -145,7 +145,7 @@ create table calls (
   id uuid primary key default gen_random_uuid(),
   match_id uuid references matches(id) not null,
   started_at timestamptz, ended_at timestamptz,
-  duration_seconds int, -- 900秒(15分)でクライアント側強制終了
+  duration_seconds int, -- 1800秒(30分)でクライアント側強制終了（2026-09-24 オーナー決定で15分→30分）
   created_at timestamptz default now()
 );
 
@@ -216,8 +216,8 @@ R5バナー、R6両者合意ロジック、日程候補提示（R7昼優先）�
 **受け入れ条件**: 10往復→双方に打診UI→片方拒否時に相手へ通知が出ないこと→双方合意→日程確定→翌日フィードバック入力までE2Eで通る。
 
 ### M5: 音声通話（モックSDK）
-`packages/shared/call-provider.ts` にインターフェース定義、MVPはWebRTCのP2Pまたはダミー実装（同一端末2シミュレータで疎通確認できる最小実装）。15分タイマー強制終了、通話前注意ダイアログ、callsログ記録。Agora本実装はキー取得後に差し替え。
-**受け入れ条件**: 通話解禁前は通話ボタン非表示。解禁後に発着信→15分で自動切断→ログ記録。
+`packages/shared/call-provider.ts` にインターフェース定義、MVPはWebRTCのP2Pまたはダミー実装（同一端末2シミュレータで疎通確認できる最小実装）。30分タイマー強制終了（2026-09-24決定。旧15分）、通話前注意ダイアログ、callsログ記録。Agora本実装はキー取得後に差し替え。
+**受け入れ条件**: 通話解禁前は通話ボタン非表示。解禁後に発着信→30分で自動切断→ログ記録。
 
 ### M6: 課金モック・透明性レポート・仕上げ
 subscription_active フラグのモック課金画面（RevenueCat統合ポイントだけインターフェースで用意）、R9制御、daily_stats集計バッチ（pg_cron）、admin月次レポート出力、退会フロー。

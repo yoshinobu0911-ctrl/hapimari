@@ -17,15 +17,15 @@
  * 年齢確認（児童でないことの確認）を安全側に倒すため「双方とも確認済みのみ」へ変更
  * （2026-08-26 オーナー決定。docs/decisions/2026-08-26_確認前操作の安全側変更.md）。
  *
- * 15分制限はトークンの有効期限（既定16分）で Agora 側からも強制される。
+ * 30分制限はトークンの有効期限（既定31分）で Agora 側からも強制される（2026-09-24 オーナー決定で15分→30分）。
  * クライアントのタイマー（call/[matchId].tsx）は主にUX用で、こちらが最後の砦。
  */
 
 import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2';
 import { RtcRole, RtcTokenBuilder } from 'npm:agora-token@2.0.5';
 
-/** 15分（900秒）＋接続・応答待ちの猶予60秒 */
-const DEFAULT_TOKEN_TTL_SECONDS = 960;
+/** 30分（1800秒）＋接続・応答待ちの猶予60秒 */
+const DEFAULT_TOKEN_TTL_SECONDS = 1860;
 
 // ---- 汎用ヘルパ（_shared/stripe.ts と同型。Stripe SDK を読み込まないためここに持つ） ----
 

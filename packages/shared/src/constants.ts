@@ -24,8 +24,8 @@ export const FEMALE_DAILY_LIKE_LIMIT = 100;
 // 旧R5の通話解禁(10通)・デート打診(20通)のメッセージ数条件は
 // 2026-07-12 オーナー決定によりすべて撤廃（マッチ成立直後から利用可）
 
-/** M5: 通話の最大秒数（15分でクライアント側強制終了） */
-export const CALL_MAX_DURATION_SECONDS = 900;
+/** 通話の最大秒数（30分でクライアント側強制終了。2026-09-24 オーナー決定で15分→30分） */
+export const CALL_MAX_DURATION_SECONDS = 1800;
 
 /** いいねメッセージの最大文字数 */
 export const LIKE_MESSAGE_MAX_LENGTH = 200;

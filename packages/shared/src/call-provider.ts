@@ -59,7 +59,7 @@ export interface CallProvider {
 export const CALL_NO_ANSWER_TIMEOUT_SECONDS = 30;
 
 /**
- * 通話の残り秒数（15分=900秒の上限から経過分を引く）。0で自動切断する。
+ * 通話の残り秒数（30分=1800秒の上限から経過分を引く）。0で自動切断する。
  * 負値は返さない。
  */
 export function remainingCallSeconds(

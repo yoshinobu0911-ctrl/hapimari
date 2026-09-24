@@ -21,7 +21,7 @@ import { useAuthStore } from '@/stores/auth';
 const END_REASON_LABEL: Record<CallEndReason, string> = {
   hangup: '通話が終了しました',
   declined: '今は応答できないようです',
-  timeout: '15分の上限に達したため終了しました',
+  timeout: '30分の上限に達したため終了しました',
   no_answer: '応答がありませんでした',
   error: '接続できませんでした。時間をおいてお試しください',
   mic_denied:
@@ -31,7 +31,7 @@ const END_REASON_LABEL: Record<CallEndReason, string> = {
 /**
  * 通話画面（docs/design/M5_design.md §5 / M8で実音声に接続）
  * Web = Agora（実音声）／ネイティブ = 当面モック（lib/call-provider.ts で切替・M8 §6-2）。
- * 15分（900秒）で自動切断。サーバー側でもトークン期限（16分）で強制される。
+ * 30分（1800秒）で自動切断。サーバー側でもトークン期限（31分）で強制される。
  * callsログは発信者のみが書く。
  */
 export default function CallScreen() {
@@ -140,7 +140,7 @@ export default function CallScreen() {
     };
   }, [matchId, myId, isCaller]);
 
-  // 1秒ごとの時計（通話中のみ）と15分自動切断
+  // 1秒ごとの時計（通話中のみ）と30分自動切断
   useEffect(() => {
     if (callState !== 'connected' || startedAt == null) return;
     const timer = setInterval(() => {
@@ -195,7 +195,7 @@ export default function CallScreen() {
             {formatCallDuration(elapsed)}
           </Text>
           <Text style={styles.remaining}>
-            残り {formatCallDuration(remaining)}（最長15分で自動終了します）
+            残り {formatCallDuration(remaining)}（最長30分で自動終了します）
           </Text>
         </View>
       ) : null}

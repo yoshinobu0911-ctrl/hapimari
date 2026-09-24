@@ -11,12 +11,46 @@
  * 失敗:  { ok: false, error: string, message: string }（statusは LIKE_ERROR_STATUS 準拠）
  */
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { findAbuseWords } from '../../../packages/shared/src/abuse_words.ts';
 import {
   FEMALE_DAILY_LIKE_LIMIT,
   LIKE_MESSAGE_MAX_LENGTH,
 } from '../../../packages/shared/src/constants.ts';
 import { findFraudWords } from '../../../packages/shared/src/fraud_words.ts';
 import { type LikeRuleUser, validateLike } from '../../../packages/shared/src/like_rules.ts';
+
+// 暴力性を示唆するカテゴリ（OpenAI moderations の categories キー）。
+// 固定辞書（abuse_words.ts）の補完として、辞書に無い言い回しの暴力表現も検知する。
+const VIOLENT_MODERATION_CATEGORIES = [
+  'violence',
+  'violence/graphic',
+  'harassment/threatening',
+  'hate/threatening',
+] as const;
+
+/**
+ * 一言メッセージの暴力性をAIで判定する（2026-09-09オーナー指示・固定辞書との多層防御）。
+ * MESSAGE_MODERATION_API_KEY 未設定、またはAPI障害時は false を返し、
+ * 固定辞書（abuse_words.ts）による遮断のみで運用する（フェイルオープン。送信自体は
+ * 止めない＝いいね機能全体がAI障害で止まらないようにする）。
+ */
+async function isMessageViolent(text: string, apiKey: string): Promise<boolean> {
+  try {
+    const res = await fetch('https://api.openai.com/v1/moderations', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'omni-moderation-latest', input: text }),
+    });
+    if (!res.ok) return false;
+    const data = (await res.json()) as {
+      results?: Array<{ categories?: Record<string, boolean> }>;
+    };
+    const categories = data.results?.[0]?.categories ?? {};
+    return VIOLENT_MODERATION_CATEGORIES.some((c) => categories[c] === true);
+  } catch {
+    return false;
+  }
+}
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -106,6 +140,28 @@ Deno.serve(async (req) => {
       ok: false,
       error: 'fraud_message',
       message: `一言メッセージに使用できない表現が含まれています（${fraudWords[0]}）。内容を変えてお試しください。`,
+    });
+  }
+
+  // 2026-08-27オーナー決定（案A）: 暴言・誹謗中傷は専用辞書で送信自体を拒否する。
+  const abuseWords = findAbuseWords(message);
+  if (abuseWords.length > 0) {
+    return json(400, {
+      ok: false,
+      error: 'abuse_message',
+      message: `一言メッセージに使用できない表現が含まれています（${abuseWords[0]}）。内容を変えてお試しください。`,
+    });
+  }
+
+  // 固定辞書の補完として、AIでも暴力性を判定する（2026-09-09オーナー指示）。
+  // biome-ignore lint/suspicious/noUndeclaredEnvVars: Edge Function のシークレット（supabase/functions/.env.example 参照）
+  const moderationApiKey = Deno.env.get('MESSAGE_MODERATION_API_KEY');
+  if (message && moderationApiKey && (await isMessageViolent(message, moderationApiKey))) {
+    return json(400, {
+      ok: false,
+      error: 'violent_message',
+      message:
+        '一言メッセージに暴力的な表現が含まれている可能性があるため送信できません。内容を変えてお試しください。',
     });
   }
 

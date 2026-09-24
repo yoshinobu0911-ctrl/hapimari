@@ -719,16 +719,22 @@ export type Database = {
       stripe_events: {
         Row: {
           id: string
+          needs_review: boolean
+          processed_at: string | null
           received_at: string
           type: string
         }
         Insert: {
           id: string
+          needs_review?: boolean
+          processed_at?: string | null
           received_at?: string
           type: string
         }
         Update: {
           id?: string
+          needs_review?: boolean
+          processed_at?: string | null
           received_at?: string
           type?: string
         }
@@ -739,6 +745,8 @@ export type Database = {
           cancel_at_period_end: boolean
           created_at: string
           current_period_end: string | null
+          last_event_created: number | null
+          pending_checkout_session_id: string | null
           plan: string
           status: string
           stripe_customer_id: string
@@ -750,6 +758,8 @@ export type Database = {
           cancel_at_period_end?: boolean
           created_at?: string
           current_period_end?: string | null
+          last_event_created?: number | null
+          pending_checkout_session_id?: string | null
           plan: string
           status?: string
           stripe_customer_id: string
@@ -761,6 +771,8 @@ export type Database = {
           cancel_at_period_end?: boolean
           created_at?: string
           current_period_end?: string | null
+          last_event_created?: number | null
+          pending_checkout_session_id?: string | null
           plan?: string
           status?: string
           stripe_customer_id?: string

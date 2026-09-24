@@ -5,7 +5,7 @@
 > 運用ルールは `C:\Users\haosh\dev\AGENTS.md` の「作業ログの記録ルール」。
 > 停止を要するブロッカーは `QUESTIONS.md`、マイルストーン受け入れは `docs/acceptance/M{n}.md`（役割分担は progress.md 冒頭を参照）。
 
-最終更新: 2026-09-24 / Codex（統合指摘表・決済統一提案を反映）
+最終更新: 2026-09-24 / Claude Opus 5.5（Q1〜Q3 決定と I04 の P1 追補を反映）
 
 ## 🚧 進行中（In Progress）
 

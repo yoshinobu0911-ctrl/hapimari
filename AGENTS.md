@@ -25,7 +25,7 @@
 
 ## 3. この環境の必須知識（実際に発生したハマりどころ）
 
-- 作業は必ず `C:\Users\haosh\dev\hapimari` で行う。**日本語を含むパスでは Supabase CLI が exit 0 のままサイレント失敗する**
+- 作業は `C:\Users\haosh\dev\` 配下の英数字だけのパスで行う（本体 `hapimari` と、AIごとの作業フォルダ `hapimari-<AI名>`。§13-1）。**日本語を含むパスでは Supabase CLI が exit 0 のままサイレント失敗する**
 - シェル起動ごとに PATH 補正: `$env:Path = "C:\Program Files\nodejs;C:\Users\haosh\AppData\Roaming\npm;$env:Path"`
 - 新規テーブルは **RLS + 明示 GRANT をセット**で書く（GRANT を忘れると REST が 403 になる）
 - スキーマ反映は `pnpm exec supabase migration up` を使う（`db reset` は手動登録ユーザーを消す）
@@ -111,10 +111,71 @@
 - 進捗とリスクを、非エンジニアが理解できる言葉で説明する。
 - 迷ったら勝手に進めず、確認質問（最大3つ）を先に出す。
 
-## 12. 定型コマンド
+## 12. 定型ワークフロー（全AI共通）
 
-- 新機能の実装依頼: `/feature 機能の説明` （設計提案→承認→実装の型で進む）
-- 実装後のセルフレビュー: `/selfreview` （残リスクと委託エンジニア向け引き継ぎ資料を生成）
+手順の本文は `docs/workflows/` に1つずつだけ置く（全AI共通の正本）。各AIの専用フォルダには、本文を読み込むだけの入口がある（§13-3）。
+
+| 名前 | 使う場面 | 本文 | 実行するAI |
+|---|---|---|---|
+| feature | 新機能の依頼（設計提案→承認→実装） | `docs/workflows/feature.md` | 誰でもよい（センシティブ領域・土台判断は advisor-design へ回す） |
+| advisor-design | センシティブ領域・土台判断の設計書づくり | `docs/workflows/advisor-design.md` | 上位モデル（§10） |
+| selfreview | 実装後の事実整理と機械チェック | `docs/workflows/selfreview.md` | 実装したAI本人 |
+| advisor-review | 実装後の独立監査（判断を伴うレビュー） | `docs/workflows/advisor-review.md` | 実装したAIとは別のAI、または上位モデル |
+
+- 呼び出し方: Claude Code は `/feature 機能の説明` などのスラッシュコマンド（入口: `.claude/commands/`）。Codex はスキルとして読み込む（入口: `.agents/skills/`）
+- どのAIでも「advisor-review を実行して」のように名前で頼まれたら、上の本文を読んでその手順どおりに実行する
+
+## 13. 複数AIでの作業の分け方（Claude Code / Codex / Grok ほか）
+
+複数のAIが同時に作業しても、お互いの作業や進捗がぶつからない（バッティングしない）ためのルール。経緯と選択肢: `docs/decisions/2026-09-24_複数AIの作業分離.md`
+
+> 状態: **提案（2026-09-24）**。作業フォルダのセットアップ（`docs/handoff/2026-09-24_multi-agent-setup.md`）が終わるまでは、従来どおり本体フォルダで作業してよい。ただし**同時に動かすAIは1つだけ**にし、13-3 のファイルの分け方は今から守る。
+
+### 13-1. 作業場所: 1つのAIセッション = 1つの作業フォルダ = 作業ごとに1つのブランチ
+
+| 使う人・AI | 作業フォルダ | ブランチ名 | 起動ポート（アプリ / 管理画面） |
+|---|---|---|---|
+| オーナー確認・統合 | `C:\Users\haosh\dev\hapimari`（本体） | `main` | 8081 / 3000 |
+| Claude Code | `C:\Users\haosh\dev\hapimari-claude` | `agent/claude/<作業名>` | 8082 / 3001 |
+| Codex | `C:\Users\haosh\dev\hapimari-codex` | `agent/codex/<作業名>` | 8083 / 3002 |
+| Grok | `C:\Users\haosh\dev\hapimari-grok` | `agent/grok/<作業名>` | 8084 / 3003 |
+| クラウド版（claude.ai/code 等） | GitHub 上 | ツールが付ける名前（例: `claude/...`） | — |
+
+- 作業フォルダは `git worktree`（同じリポジトリの「別の作業机」）。履歴とブランチは全フォルダで共有される
+- 本体フォルダではファイルを編集・コミットしない（13-2 の統合だけは例外）。他のAIのフォルダも書き換えない（読むのはよい）
+- 同じAIを同時に2つ動かすときは `hapimari-claude2` のようにフォルダを増やす。パスに日本語を入れない（§3）
+- 画面は上の表のポートで起動する（例: Codex は `pnpm -F mobile exec expo start --web --port 8083` / `pnpm -F admin exec next dev --port 3002`）。決済の戻り先は 8081 固定なので、決済の動作確認は本体フォルダで行う
+
+### 13-2. 毎回の始め方・終わり方・統合
+
+1. **始める**: `git worktree list` で自分のフォルダにいるか確認 → `git status` で前回の残りが無いか確認（残っていたら消さずにオーナーへ報告）→ `git switch -c agent/<AI名>/<作業名> main`（ブランチ名が担当宣言になる。待機中の「HEAD detached」は正常）
+2. **重なりを確認する**: `git branch --list "agent/*"` で進行中の作業を見て、`git diff --stat main...<ブランチ名>`（コミット済み）と `git -C <そのフォルダ> status --short`（未コミット）で変更ファイルを確認。同じファイルを触る作業が進行中なら、着手せずオーナーへ報告
+3. **終える**: チェック（`pnpm exec biome check .` / apps/mobile・apps/admin で `pnpm exec tsc --noEmit` / `pnpm --filter @hapimari/shared test`）→ 自分のブランチにコミット（最後の行に `Agent: <AI名>`）→ 自分の作業ログ（13-3）に記録 → オーナーに「`agent/<AI名>/<作業名>` 完了・統合待ち」と報告
+4. **統合（main への取り込み）は Claude Code が本体フォルダで行う**（オーナーの依頼を受けてから）: `git status` が空か確認 → `git pull --ff-only origin main` → 差分をレビュー（§6 に触れていれば、オーナー承認と advisor-review の結果を確認）→ `git merge --no-ff <ブランチ名>`（クラウド版は先に `git fetch origin <ブランチ名>` して `origin/<ブランチ名>` を取り込む）→ 衝突は両方の意図を残して解消 → migration があれば適用と型再生成（§3）→ 3 と同じチェック → `progress.md` に1行要約を追記 → `git push origin main` → 統合したブランチは `git branch -d` で消す（使用中なら消えないので、そのままでよい）
+
+### 13-3. AIごとに分けるファイル・全員で共有するファイル
+
+| 種類 | 置き場所 | 書いてよいAI |
+|---|---|---|
+| AIごとの作業ログ（途中経過・結果・申し送り） | `docs/agents/<AI名>/log.md` | そのAIだけ |
+| Claude Code 専用の設定と入口 | `.claude/`（`commands/` など） | Claude Code だけ |
+| Codex 専用の入口（スキル） | `.agents/skills/` | Codex だけ（他の Agent Skills 対応AIも読む） |
+| Grok 専用の設定 | `.grok/`（必要になったら作る） | Grok だけ |
+| AIごとの成果物（レビュー・提案など） | 各 `docs/` フォルダ。ファイル名にAI名を入れる（例: `2026-09-20_外部レビュー_codex.md`） | 作ったAIだけ |
+| 開発憲法・定型ワークフローの本文 | `AGENTS.md`・`docs/workflows/` | 全AI共通。変更はオーナー承認制 |
+| 全体の現在地・タスク・質問 | `progress.md`・`tasks.md`・`QUESTIONS.md` | 全AI共通（下のルール） |
+
+- **入口ファイル（`.claude/commands/`・`.agents/skills/`）には本文を書かない。** 本文は `docs/workflows/` の1か所だけ（複製すると食い違う。2026-09-24 に `.agents/` の複製スキルを削除したのはこのため）
+- `progress.md`（全体の現在地）には、統合する人が1行要約と作業ログへのリンクを追記する（統合担当の Claude Code。作業フォルダの導入前は作業したAI自身）。途中経過や詳細は自分の `log.md` に書く
+- `tasks.md`: 消してよいのは自分が完了したタスクの行だけ。`QUESTIONS.md`: 新しい番号は `Q-YYYYMMDD-<AI名>`（連番の取り合いを防ぐ）
+- 統合時に衝突したら、両方の内容を残す（片方を消して解決しない）
+
+### 13-4. 同時に1つのAIだけが触る場所（フォルダを分けても共有されるもの）
+
+- `supabase/`（migration・Edge Function・seed）と、DBから生成するファイル（`packages/shared/src/types/database.ts`・`supabase/schema.generated.sql`）。原則 Claude Code が担当する（§6 と重なるため）。生成ファイルは手で編集しない
+- ローカルDB（Supabase）は全フォルダで1つを共有している。`migration up` と型の再生成はDB担当だけ。`supabase db reset`・`supabase stop` は禁止（全員の作業が止まる）。起動していなければ本体フォルダで `pnpm exec supabase start`。Edge Function は、`supabase start` / `functions serve` を実行したフォルダのコードが動く
+- 依存パッケージの追加（`package.json`・`pnpm-lock.yaml`）はオーナー承認制（§5）で、同時に1つのAIだけ
+- `AGENTS.md`・`CLAUDE.md`・`SPEC.md` はオーナー承認なしに変更しない
 
 ## 編集方針
 ファイルを編集するときは、ファイル全体を書き直さず、変更が必要な箇所だけを対象にした最小限の編集（str_replace / diff）を優先してください。

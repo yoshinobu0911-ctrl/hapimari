@@ -125,8 +125,15 @@ begin
   insert into profiles (id, nickname, gender, birth_date, prefecture, marital_history, marriage_intent)
   values ('99999999-9999-9999-9999-999999999999', '再登録', 'male', '1975-01-01', '東京都', 'divorced', 'someday');
   raise notice 'FAIL: 退会直後に再登録できた';
-exception when others then
-  raise notice 'PASS: 7日以内の再登録は拒否された (%)', sqlerrm;
+exception
+  when raise_exception then
+    if sqlerrm = 'registration_cooling' then
+      raise notice 'PASS: 7日以内の再登録は拒否された (%)', sqlerrm;
+    else
+      raise notice 'FAIL: 想定外の拒否理由 (%)', sqlerrm;
+    end if;
+  when others then
+    raise notice 'FAIL: 想定外の拒否理由 (%)', sqlerrm;
 end $$;
 reset role;
 
@@ -170,8 +177,15 @@ begin
   insert into profiles (id, nickname, gender, birth_date, prefecture, marital_history, marriage_intent)
   values ('88888888-8888-8888-8888-888888888888', 'BAN回避', 'male', '1975-01-01', '東京都', 'divorced', 'someday');
   raise notice 'FAIL: 強制退会者が1年後に再登録できた';
-exception when others then
-  raise notice 'PASS: 強制退会者は再登録できない (%)', sqlerrm;
+exception
+  when raise_exception then
+    if sqlerrm = 'registration_banned' then
+      raise notice 'PASS: 強制退会者は再登録できない (%)', sqlerrm;
+    else
+      raise notice 'FAIL: 想定外の拒否理由 (%)', sqlerrm;
+    end if;
+  when others then
+    raise notice 'FAIL: 想定外の拒否理由 (%)', sqlerrm;
 end $$;
 reset role;
 

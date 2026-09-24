@@ -120,8 +120,15 @@ begin
   insert into messages (match_id, sender, body)
     values (mid, (current_setting('request.jwt.claims')::json->>'sub')::uuid, '課金なしで送信');
   raise notice 'FAIL: 未課金男性がメッセージを挿入できた';
-exception when others then
-  raise notice 'PASS: 未課金男性の挿入は拒否された (%)', sqlerrm;
+exception
+  when raise_exception then
+    if sqlerrm = 'not_entitled' then
+      raise notice 'PASS: 未課金男性の挿入は拒否された (%)', sqlerrm;
+    else
+      raise notice 'FAIL: 想定外の拒否理由 (%)', sqlerrm;
+    end if;
+  when others then
+    raise notice 'FAIL: 想定外の拒否理由 (%)', sqlerrm;
 end $$;
 reset role;
 update profiles set subscription_active = true where id = :'male_id';

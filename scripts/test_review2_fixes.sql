@@ -168,7 +168,7 @@ begin
   exception when unique_violation then
     raise notice 'PASS: 既存パスへの再挿入は一意制約違反で拒否';
   when others then
-    raise notice 'PASS?: 再挿入は拒否された (%)', sqlerrm;
+    raise notice 'FAIL: 想定外の拒否理由 (%)', sqlerrm;
   end;
 end $$;
 reset role;

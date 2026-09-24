@@ -13,7 +13,7 @@
 
 ## 🎯 現在のゴール（Now）
 <!-- いま進めているマイルストーン/機能。1〜3行。 -->
-- **PR #1 レビュー対応は統合指摘表42件を基準に管理**（済8・未31・見送り3）。[統合表](docs/review/2026-09-24_統合指摘表.md)・[決済の統一提案](docs/design/2026-09-24_決済修正設計提案.md)（§9最終差分まで作成済み）・[匿名化の追加提案](docs/design/2026-09-24_匿名化追加対応_設計提案.md)を作成済み。次はオーナー承認（決済§9の実装可否・匿名化の確認質問3点）→実装。P1追補（S・無条件when others 4か所）は未着手のまま残っている。
+- **PR #1 レビュー対応は統合指摘表42件を基準に管理**（済8→**決済7件・匿名化3件を2026-09-24実装完了で済18**・未21・見送り3）。決済（I06/I07/I23/I24/I25/I26/I34）と匿名化（I27/I41/I42）はコード実装・ローカル検証済み → [受け入れ記録](docs/acceptance/2026-09-24_決済修正と匿名化追加対応.md)。残るのは実Stripeキーでの疎通・Stripeダッシュボード設定（運用作業）。次の優先はP1追補（S・無条件when others 4か所）とP2の残り6件（I08/I09/I10/I11/I28/I29）。
 - 公開側の最大のボトルネックは依然として開発ではなく**出会い系サイト規制法の届出**（受理まで2週間〜1ヶ月）。当初の9/14目標は経過済みで、公開日は届出の受理待ち。
 
 ## 🚧 進行中（In Progress）
@@ -25,6 +25,7 @@
 
 ## ✅ 完了したこと（Done）
 <!-- 新しいものを上に。日付(YYYY-MM-DD)とツール名を添える。 -->
+- 2026-09-24 (Claude/Sonnet 5): **決済修正（I06/I07/I23/I24/I25/I26/I34）と匿名化追加分（I27/I41/I42）を実装**（オーナー指示「他エージェントの状況を確認し、片付いていなければ推奨パターンで実装」）。受け入れ記録: [2026-09-24_決済修正と匿名化追加対応.md](docs/acceptance/2026-09-24_決済修正と匿名化追加対応.md)。①migration2本（4列追加＋withdraw_accountガード＋expire_stale_subscriptions修正／anonymize_profile拡張）②stripe-webhook・stripe-checkout・stripe-cancel全面改訂③mypage.tsx④privacy_policy.md §6に削除対象・通報保存方針を明記。**実装中の発見・判断**: (a)旧webhookの「insert失敗時delete」が輻輳配送で記録喪失する穴を実装で解消 (b)expire_stale_subscriptionsのStripe未確認status書き換えが新設の退会ガードと組み合わさると抜け道になる点を発見し設計変更 (c)別契約IDへの再昇格はStripe照会で確認できない場合、新しい契約をcancelしneeds_review扱いに（Webhook内から決済側へ副作用を及ぼす数少ない箇所、要人間レビュー） (d)confirmed_slotは相手も見る確定記録のため匿名化対象外に(area_suggestionのみ消去)。**検証**: SQLスイート5本全合格（新規test_m73×9件・test_m67に追加5件、既存含め回帰なし）／tsc 3パッケージ0／biome 142ファイル0／shared vitest 93件成功／migration適用・型再生成・schema.generated.sql再生成済み。検証中に誤ってseed01を退会させてしまい手動で復元（対象・原因をacceptance記録に明記）。**未実施**: 実Stripeキー疎通、Stripeダッシュボードでのcheckout.session.expiredイベント有効化（運用作業・コード対応不可）、Edge Runtimeでの起動確認
 - 2026-09-24 (Claude/Sonnet 5): **決済修正の最終差分（§9）と匿名化追加分の設計提案を作成**。①[決済提案](docs/design/2026-09-24_決済修正設計提案.md) §9: §8決定（Q1=A'/Q2=A）を実コード（stripe-webhook/checkout/cancel/_shared/stripe.ts、withdraw_account、expire_stale_subscriptions、mypage.tsx、subscription-view.ts）の行番号に対応させ、migration DDL・関数ごとの変更点まで具体化。**副次的な発見2件**: (a) 現行webhookは「insert失敗時にstripe_events行を削除」する実装のため、輻輳配送時に記録が残らないまま処理済み扱いになる穴がある（processed_at方式で解消）。(b) expire_stale_subscriptionsがStripe未確認のままstatusをcanceledに書き換えており、Q2の退会ガード（status='canceled'は退会許可）と組み合わせると実際は契約継続中でも3日で退会できてしまう（status書き換えを削除する案に変更）。②[匿名化提案](docs/design/2026-09-24_匿名化追加対応_設計提案.md): I27/I41/I42を一体提案。satoman0703さんの2026-09-21提示SQL（likes/date_proposals/user_events）を実コードで裏取りし採用、confirmed_slotは実はproposed_byを持つ点を訂正。確認質問3点（confirmed_slotの扱い・既匿名化行の遡及補修・reports保存方針）を提示。両提案とも文書のみ・コード/DB変更なし。次はオーナー承認（決済§9の実装可否、匿名化の確認質問3点）待ち。実装順序は決済提案が先（匿名化のsubscriptions削除が退会ガード実装後を前提とするため）
 - 2026-09-24 (Claude/Opus 5.5): 開発憲法の正本を AGENTS.md に統一。CLAUDE.md は取り込み専用に。.agents/ の複製スキル削除は保留（ヘッダ差分あり・本人確認待ち）
 - 2026-09-24 (Claude/Opus 5.5): Q1〜Q3 のオーナー決定を提案書 §8・統合表・decisions に反映。I04 を一部残存に訂正。文書10ファイルをコミット。コード変更なし

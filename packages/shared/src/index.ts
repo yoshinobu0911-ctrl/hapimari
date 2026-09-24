@@ -8,6 +8,7 @@ export * from './discover_filters';
 export * from './fraud_words';
 export * from './like_rules';
 export * from './like_visibility';
+export * from './message_send_error';
 export * from './prefecture_capitals';
 export * from './subscription-plans';
 export * from './subscription-view';

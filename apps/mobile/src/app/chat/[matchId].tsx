@@ -1,5 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
-import { type CallListener, MESSAGE_BODY_MAX_LENGTH } from '@hapimari/shared';
+import {
+  type CallListener,
+  classifyMessageSendError,
+  MESSAGE_BODY_MAX_LENGTH,
+  messageSendFailureText,
+} from '@hapimari/shared';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -193,14 +198,33 @@ export default function Chat() {
       sender: myId,
       body,
     });
-    setSending(false);
     if (error) {
-      // RLS拒否（未認証・凍結・当事者でない）等
-      setSendError(
-        '送信できませんでした。本人確認の状態をご確認のうえ、時間をおいてお試しください。',
-      );
+      // I33: 原因別に案内する。送信資格なし（not_entitled）のときは、本人の状態と
+      // 課金期限をサーバーに問い合わせ直してから理由を決める（profiles.subscription_active は
+      // 定期処理で補正される列なので、期限切れ直後は true のまま残りうる）
+      const kind = classifyMessageSendError(error);
+      let text = messageSendFailureText(kind);
+      if (kind === 'not_entitled') {
+        const [{ data: me }, { data: subActive }] = await Promise.all([
+          supabase
+            .from('profiles')
+            .select('status, is_verified, gender')
+            .eq('id', myId)
+            .maybeSingle(),
+          supabase.rpc('is_subscription_active', { p_user: myId }),
+        ]);
+        queryClient.invalidateQueries({ queryKey: ['my-profile', myId] });
+        text = messageSendFailureText(kind, {
+          isActive: me?.status === 'active',
+          isVerified: me?.is_verified === true,
+          needsSubscription: me?.gender === 'male' && subActive !== true,
+        });
+      }
+      setSending(false);
+      setSendError(text);
       return;
     }
+    setSending(false);
     setDraft('');
     queryClient.invalidateQueries({ queryKey: ['messages', matchId] });
   };

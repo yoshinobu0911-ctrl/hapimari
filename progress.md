@@ -1,8 +1,8 @@
 # Progress Log — ハピマリ（再婚マッチングアプリ）
 
 > このファイルは「作業ログ（work journal）」です。**現在地・進行中・TODO** をひと目で分かるようにします。
-> AI（Claude Code / Codex / Antigravity 等）は、作業開始時にまずここを読み、区切りごと＆終了時に更新します。
-> ルール本体は `CLAUDE.md`（開発憲法）と `dev/AGENTS.md`（共通ルール）にあります。ここは状態(state)だけを記録。
+> AI（Claude Code / Codex / Grok 等）は、作業開始時にまずここを読みます。**途中経過や詳細は各AIの作業ログ `docs/agents/<AI名>/log.md` に書き、ここには統合時に1行要約とログへのリンクを追記します**（2026-09-24〜。`AGENTS.md` §13-3）。
+> ルール本体は `AGENTS.md`（開発憲法）にあります。ここは状態(state)だけを記録。
 >
 > 使い分け（既存の記録との役割分担）:
 > - 大きな設計判断の詳細 → `docs/decisions/`（憲法 §8）。ここには1行の要約＋リンクだけ。
@@ -18,13 +18,14 @@
 
 ## 🚧 進行中（In Progress）
 <!-- 中断しても再開できるように、今どのファイル・どの作業の途中かを書く。 -->
-- （なし）
+- （なし。各AIの進行中の作業は `docs/agents/<AI名>/log.md` の先頭の 🚧 行を見る）
 
 ## 📋 TODO → `tasks.md` へ移設（2026-09-02）
 未完了タスクの一覧は `tasks.md` を参照。ここには置かない（二重管理防止）。10件のTODOを文言そのまま移設済み。
 
 ## ✅ 完了したこと（Done）
 <!-- 新しいものを上に。日付(YYYY-MM-DD)とツール名を添える。 -->
+- 2026-09-24 (Claude): **複数AIの作業がぶつからない構成かを点検し、分け方を提案**（main 未統合・オーナー承認待ち）。AGENTS.md §13（AIごとの作業フォルダ・ブランチ・ファイルの分け方）、定型ワークフロー4本の共通化（`docs/workflows/`・advisor-design/advisor-review を追加）、AIごとの作業ログ（`docs/agents/`）、古い引き継ぎ書の作業場所の指示を修正 → [Claude の作業ログ](docs/agents/claude/log.md)・[決定記録](docs/decisions/2026-09-24_複数AIの作業分離.md)
 - 2026-09-24 (Claude Fable 5.1): **レビュー残件20件＋運用判断3件をオーナーがチャットで一括決定** → [決定記録](docs/decisions/2026-09-24_レビュー残件20件の方針決定.md)。push 承認・GitHub返信はドラフト後確認・見送り3件確定。必須5件（I08/I09/I11/I28/I29）と I15/I33/I39 は A 案、I12/I13/I16 と P4 4件は包括承認、**I32 は「通話時間制限を撤廃」へ仕様変更**（費用注記つき）。I10 保留、I14/I35 は説明再提示待ち。統合表の状態欄を実態（済19/未20/見送り3）に更新し、tasks.md を再構成。コード変更なし。20コミットを origin/main へ push
 - 2026-09-24 (Claude/Sonnet 5): **決済修正（I06/I07/I23/I24/I25/I26/I34）と匿名化追加分（I27/I41/I42）を実装**（オーナー指示「他エージェントの状況を確認し、片付いていなければ推奨パターンで実装」）。受け入れ記録: [2026-09-24_決済修正と匿名化追加対応.md](docs/acceptance/2026-09-24_決済修正と匿名化追加対応.md)。①migration2本（4列追加＋withdraw_accountガード＋expire_stale_subscriptions修正／anonymize_profile拡張）②stripe-webhook・stripe-checkout・stripe-cancel全面改訂③mypage.tsx④privacy_policy.md §6に削除対象・通報保存方針を明記。**実装中の発見・判断**: (a)旧webhookの「insert失敗時delete」が輻輳配送で記録喪失する穴を実装で解消 (b)expire_stale_subscriptionsのStripe未確認status書き換えが新設の退会ガードと組み合わさると抜け道になる点を発見し設計変更 (c)別契約IDへの再昇格はStripe照会で確認できない場合、新しい契約をcancelしneeds_review扱いに（Webhook内から決済側へ副作用を及ぼす数少ない箇所、要人間レビュー） (d)confirmed_slotは相手も見る確定記録のため匿名化対象外に(area_suggestionのみ消去)。**検証**: SQLスイート5本全合格（新規test_m73×9件・test_m67に追加5件、既存含め回帰なし）／tsc 3パッケージ0／biome 142ファイル0／shared vitest 93件成功／migration適用・型再生成・schema.generated.sql再生成済み。検証中に誤ってseed01を退会させてしまい手動で復元（対象・原因をacceptance記録に明記）。**未実施**: 実Stripeキー疎通、Stripeダッシュボードでのcheckout.session.expiredイベント有効化（運用作業・コード対応不可）、Edge Runtimeでの起動確認
 - 2026-09-24 (Claude/Sonnet 5): **決済修正の最終差分（§9）と匿名化追加分の設計提案を作成**。①[決済提案](docs/design/2026-09-24_決済修正設計提案.md) §9: §8決定（Q1=A'/Q2=A）を実コード（stripe-webhook/checkout/cancel/_shared/stripe.ts、withdraw_account、expire_stale_subscriptions、mypage.tsx、subscription-view.ts）の行番号に対応させ、migration DDL・関数ごとの変更点まで具体化。**副次的な発見2件**: (a) 現行webhookは「insert失敗時にstripe_events行を削除」する実装のため、輻輳配送時に記録が残らないまま処理済み扱いになる穴がある（processed_at方式で解消）。(b) expire_stale_subscriptionsがStripe未確認のままstatusをcanceledに書き換えており、Q2の退会ガード（status='canceled'は退会許可）と組み合わせると実際は契約継続中でも3日で退会できてしまう（status書き換えを削除する案に変更）。②[匿名化提案](docs/design/2026-09-24_匿名化追加対応_設計提案.md): I27/I41/I42を一体提案。satoman0703さんの2026-09-21提示SQL（likes/date_proposals/user_events）を実コードで裏取りし採用、confirmed_slotは実はproposed_byを持つ点を訂正。確認質問3点（confirmed_slotの扱い・既匿名化行の遡及補修・reports保存方針）を提示。両提案とも文書のみ・コード/DB変更なし。次はオーナー承認（決済§9の実装可否、匿名化の確認質問3点）待ち。実装順序は決済提案が先（匿名化のsubscriptions削除が退会ガード実装後を前提とするため）
@@ -57,4 +58,4 @@
 
 ## ⚠️ ハマりポイント / 未解決（Blockers & Gotchas）
 <!-- 停止を要するブロッカーは QUESTIONS.md へ。ここは軽い注意・回避策のメモ。 -->
-- 作業パスは必ず `C:\Users\haosh\dev\hapimari`（日本語を含むパスだと Supabase CLI がサイレント失敗）
+- 作業パスは `C:\Users\haosh\dev\` 配下の英数字だけ（本体 `hapimari` と、AIごとの作業フォルダ `hapimari-<AI名>`。日本語を含むパスだと Supabase CLI がサイレント失敗）

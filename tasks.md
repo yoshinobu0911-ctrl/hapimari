@@ -40,3 +40,7 @@
 - [ ] 【オーナー待ち】**M8 実音声の疎通確認**: Agoraアカウント作成（設計書§8の手順）→ App ID / App Certificate をチャットで共有 → `.env` 設定して `docs/acceptance/M8.md` §B を実施（2ブラウザで通話・マイク拒否・期限切断・ログ）
 - [ ] M8の後続: ネイティブ（iOS/Android）の通話対応（react-native-agora + Expo開発ビルド。ストア配信準備と同時に。9/14のWeb先行公開には不要と設計書に明記済み）
 - [ ] 【オーナー待ち】**M7.2 の実決済テスト**（Stripeテストキーを `supabase/functions/.env` に設定後、`docs/design/M7_2_payment_ui_design.md` §12 の手順で §11-(7)〜(15)(18) を実施）→ 結果を `docs/acceptance/M7_2.md` §B に記入
+
+### 開発体制（2026-09-24 追加）
+
+- [ ] 【オーナー承認待ち・指示書あり】**複数AIの作業分離の導入**（AIごとの作業フォルダ・ワークフローの共通化・advisor の原本の取り込み）。PC上の Claude Code（本体フォルダ）にこの1行を貼るだけ: 「`git fetch origin claude/inspiring-euler-acq15n` を実行し、ブランチは切り替えずに `git show origin/claude/inspiring-euler-acq15n:docs/handoff/2026-09-24_multi-agent-setup.md` で指示書を読んで、その指示どおりに進めて」。背景: `docs/decisions/2026-09-24_複数AIの作業分離.md`

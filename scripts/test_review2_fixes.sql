@@ -187,11 +187,13 @@ from (
 -- 一括revoke後に明示grantした2本（is_blocked_between / is_match_participant）＋
 -- 利用者が画面から直接呼ぶ必要のあるRPC群。**この表に無い関数に authenticated 実行権が
 -- 付いたら赤くなる**のが狙い（新規migrationでの grant 漏れ・付けすぎの検知）。
+-- 2026-09-26 I08: get_my_latest_messages を追加（画面から直接呼ぶ RPC）。19→20本。
 create temp table t6_allow(sig text);
 insert into t6_allow(sig) values
   ('can_caller_message()'),
   ('cancel_date(uuid)'),
   ('get_date_status(uuid)'),
+  ('get_my_latest_messages()'),
   ('get_profile_distances(uuid[])'),
   ('is_blocked_between(uuid,uuid)'),
   ('is_caller_active()'),
@@ -220,7 +222,7 @@ select case when count(*) = 0 then 'PASS: 許可リスト外で authenticated �
 from t6_actual where sig not in (select sig from t6_allow);
 
 \echo '--- T6-c: 許可リストの関数が実行可能なまま（revokeのやりすぎ検知） ---'
-select case when count(*) = 0 then 'PASS: 許可リスト19本はすべて実行可能'
+select case when count(*) = 0 then 'PASS: 許可リスト20本はすべて実行可能'
             else 'FAIL: 実行できなくなった関数が ' || count(*) || '件 (' || string_agg(sig, ', ') || ')' end
 from t6_allow where sig not in (select sig from t6_actual);
 

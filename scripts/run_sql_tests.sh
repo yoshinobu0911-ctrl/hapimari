@@ -28,6 +28,7 @@ SUITES=(
   "test_m67_retention:28"
   "test_review2_fixes:23"
   "test_m73_payment_reconciliation:9"
+  "test_i08_latest_messages:11"
 )
 FAIL_TOTAL=0
 

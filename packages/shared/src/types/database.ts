@@ -1067,6 +1067,14 @@ export type Database = {
         }[]
       }
       get_date_status: { Args: { p_match_id: string }; Returns: Json }
+      get_my_latest_messages: {
+        Args: never
+        Returns: {
+          body: string
+          created_at: string
+          match_id: string
+        }[]
+      }
       get_pending_file_deletions: {
         Args: never
         Returns: {

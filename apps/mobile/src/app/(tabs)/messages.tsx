@@ -18,12 +18,9 @@ type MatchRow = {
   created_at: string | null;
 };
 
-type MessageRow = {
-  id: string;
+type LatestMessageRow = {
   match_id: string;
-  sender: string;
   body: string;
-  flagged: boolean;
   created_at: string | null;
 };
 
@@ -66,21 +63,13 @@ export default function Messages() {
         profiles = Object.fromEntries((rows as PublicProfile[]).map((p) => [p.id, p]));
       }
 
-      // 最新メッセージ: MVPでは全件取得しクライアントで先頭を選ぶ（§5.5）
-      const latest: Record<string, MessageRow> = {};
+      // 最新メッセージ: マッチごとに1件を DB 側で選ぶ（I08）。
+      // 旧実装の「全件取得→先頭を選ぶ」は max_rows=1000 で無言で打ち切られ、古い会話のプレビューが消えていた。
+      const latest: Record<string, LatestMessageRow> = {};
       if (matches.length > 0) {
-        const { data: msgs, error: msgError } = await supabase
-          .from('messages')
-          .select('*')
-          .in(
-            'match_id',
-            matches.map((m) => m.id),
-          )
-          .order('created_at', { ascending: false });
+        const { data: rows, error: msgError } = await supabase.rpc('get_my_latest_messages');
         if (msgError) throw msgError;
-        for (const msg of msgs as MessageRow[]) {
-          if (!latest[msg.match_id]) latest[msg.match_id] = msg;
-        }
+        for (const row of rows ?? []) latest[row.match_id] = row;
       }
       return { matches: matches as MatchRow[], profiles, latest };
     },

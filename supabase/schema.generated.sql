@@ -920,6 +920,30 @@ end $$;
 ALTER FUNCTION "public"."get_date_status"("p_match_id" "uuid") OWNER TO "postgres";
 
 
+CREATE OR REPLACE FUNCTION "public"."get_my_latest_messages"() RETURNS TABLE("match_id" "uuid", "body" "text", "created_at" timestamp with time zone)
+    LANGUAGE "sql" STABLE
+    SET "search_path" TO 'public'
+    AS $$
+  select m.id, lm.body, lm.created_at
+  from public.matches m
+  cross join lateral (
+    select msg.body, msg.created_at
+    from public.messages msg
+    where msg.match_id = m.id
+    order by msg.created_at desc
+    limit 1
+  ) lm
+  where m.user_a = auth.uid() or m.user_b = auth.uid();
+$$;
+
+
+ALTER FUNCTION "public"."get_my_latest_messages"() OWNER TO "postgres";
+
+
+COMMENT ON FUNCTION "public"."get_my_latest_messages"() IS 'メッセージ一覧のプレビュー用。呼び出し者のマッチごとに最新メッセージ1件（本文・時刻）を返す。INVOKERで既存RLSに従い、加えてWHEREで当事者に限定（RLSを素通りするロール向けの多層防御）。メッセージ0件のマッチは行を返さない';
+
+
+
 CREATE OR REPLACE FUNCTION "public"."get_pending_file_deletions"() RETURNS TABLE("bucket_id" "text", "path" "text")
     LANGUAGE "sql" STABLE SECURITY DEFINER
     SET "search_path" TO 'public'
@@ -3866,6 +3890,12 @@ GRANT ALL ON FUNCTION "public"."get_approved_photo_paths"("p_paths" "text"[]) TO
 REVOKE ALL ON FUNCTION "public"."get_date_status"("p_match_id" "uuid") FROM PUBLIC;
 GRANT ALL ON FUNCTION "public"."get_date_status"("p_match_id" "uuid") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."get_date_status"("p_match_id" "uuid") TO "service_role";
+
+
+
+REVOKE ALL ON FUNCTION "public"."get_my_latest_messages"() FROM PUBLIC;
+GRANT ALL ON FUNCTION "public"."get_my_latest_messages"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."get_my_latest_messages"() TO "service_role";
 
 
 

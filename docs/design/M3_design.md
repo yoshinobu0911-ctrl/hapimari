@@ -332,7 +332,7 @@ Vitestでテストする（R3の4象限: 子持ち女×宣言なし男=NG / 宣�
 ### 5.5 マッチ一覧 `(tabs)/messages`
 
 - データ: `matches where user_a=me or user_b=me` + 相手profile + 最新メッセージ1件
-  （最新メッセージは match_id in (...) で messages を取得しクライアント側で先頭を選ぶ。MVPでは十分）
+  （最新メッセージは RPC `get_my_latest_messages()` でマッチごとに1件を DB 側で選ぶ。I08・2026-09-26）
 - 行UI: 相手写真（小・丸）/ 名前 / 最新メッセージ先頭30字 / 日時。**未読バッジは作らない**（Out of Scope）
 - タップ→ `chat/[matchId]`
 - Realtime: `matches` INSERT/UPDATE + `messages` INSERT を購読しinvalidate

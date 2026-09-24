@@ -1,22 +1,12 @@
 import { type NextRequest, NextResponse } from 'next/server';
+import { allowsInsecureWithoutPassword, isValidBasicAuth } from './lib/basic-auth';
 
 // 管理画面全体をBasic認証で保護する（監査P0-1対応 + レビュー2回目 must#7 対応）。
 // ADMIN_PASSWORD 未設定時は環境を問わず503で全遮断する。
 // ローカル開発で認証を外したい場合のみ ADMIN_ALLOW_INSECURE=1 を明示する
 // （NODE_ENV の判定ミスや未設定ビルドで本番が素通しになる事故を防ぐ）。
-const ADMIN_USER = 'admin';
+// 認証の判定本体は lib/basic-auth.ts（next/headers に依存しない純粋処理・I18）
 const HSTS_VALUE = 'max-age=31536000; includeSubDomains';
-
-function timingSafeEqual(a: string, b: string): boolean {
-  const bytesA = new TextEncoder().encode(a);
-  const bytesB = new TextEncoder().encode(b);
-  let diff = bytesA.length ^ bytesB.length;
-  const len = Math.max(bytesA.length, bytesB.length);
-  for (let i = 0; i < len; i++) {
-    diff |= (bytesA[i] ?? 0) ^ (bytesB[i] ?? 0);
-  }
-  return diff === 0;
-}
 
 /** 本番のレスポンスに HSTS を付与して返す（Basic認証はhttpsが前提） */
 function withSecurityHeaders(response: NextResponse): NextResponse {
@@ -36,7 +26,7 @@ export function middleware(request: NextRequest) {
   const password = process.env.ADMIN_PASSWORD;
   if (!password) {
     // 明示フラグが無い限り、開発環境でも素通しにしない
-    if (process.env.ADMIN_ALLOW_INSECURE === '1' && process.env.NODE_ENV !== 'production') {
+    if (allowsInsecureWithoutPassword(process.env)) {
       return NextResponse.next();
     }
     return withSecurityHeaders(
@@ -47,15 +37,8 @@ export function middleware(request: NextRequest) {
     );
   }
 
-  const authorization = request.headers.get('authorization');
-  if (authorization?.startsWith('Basic ')) {
-    const decoded = atob(authorization.slice('Basic '.length));
-    const separator = decoded.indexOf(':');
-    const user = decoded.slice(0, separator);
-    const pass = decoded.slice(separator + 1);
-    if (timingSafeEqual(user, ADMIN_USER) && timingSafeEqual(pass, password)) {
-      return withSecurityHeaders(NextResponse.next());
-    }
+  if (isValidBasicAuth(request.headers.get('authorization'), password)) {
+    return withSecurityHeaders(NextResponse.next());
   }
 
   return withSecurityHeaders(

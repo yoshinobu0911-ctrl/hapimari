@@ -6,10 +6,12 @@
 \pset pager off
 begin;
 
+-- 2026-09-24: seedは同一トランザクションでcreated_atが同値になり得るため、id を二次キーにして
+-- 選ばれるユーザーを決定的にする（順序が不定だとuser_events等データ依存のPASS件数がぶれる）
 create temp table t as
 select
-  (select id from profiles where gender='female' and status='active' order by created_at limit 1) as u,
-  (select id from profiles where gender='male' and status='active' order by created_at limit 1) as m;
+  (select id from profiles where gender='female' and status='active' order by created_at, id limit 1) as u,
+  (select id from profiles where gender='male' and status='active' order by created_at, id limit 1) as m;
 select u as uid, m as mid from t \gset
 
 -- 2026-09-20（PR#1 指摘 4055523971）: 匿名化の検証が空振りしないよう、退会前に
@@ -27,6 +29,24 @@ insert into messages (match_id, sender, body)
     and mt.user_b = greatest(:'uid'::uuid, :'mid'::uuid);
 -- 削除待ちキューの検証用に、既知のパスを1件だけ持たせる
 update profiles set photo_urls = array[:'uid' || '/test_m67_photo.jpg'] where id = :'uid';
+
+-- 2026-09-24追加（I27・I41）: messages.body 以外に残っていた自由文と決済識別子の検証用データ
+insert into likes (from_user, to_user, message)
+  values (:'uid'::uuid, :'mid'::uuid, '退会テスト用のいいね一言（匿名化で消えること）')
+  on conflict (from_user, to_user) do update set message = excluded.message;
+insert into date_proposals (match_id, proposed_slots, area_suggestion)
+  select mt.id,
+         jsonb_build_array(
+           jsonb_build_object('date','2026-10-01','time_range','weekend_am','proposed_by', :'uid'),
+           jsonb_build_object('date','2026-10-02','time_range','weekend_am','proposed_by', :'mid')
+         ),
+         '中間地点テスト用地名'
+  from matches mt
+  where mt.user_a = least(:'uid'::uuid, :'mid'::uuid) and mt.user_b = greatest(:'uid'::uuid, :'mid'::uuid)
+  returning id as dp_id \gset
+insert into subscriptions (user_id, stripe_customer_id, stripe_subscription_id, plan, status, current_period_end)
+  values (:'uid'::uuid, 'cus_test_m67_anon', 'sub_test_m67_anon', 'male_1m', 'canceled', now() - interval '1 day')
+  on conflict (user_id) do update set status = excluded.status;
 
 \echo ''
 \echo '################ 1. 退会時の台帳記録 ################'
@@ -99,6 +119,28 @@ from matches where user_a = :'uid' or user_b = :'uid';
 select case when count(*) > 0 then 'PASS: 行動ログは ' || count(*) || ' 件残っている'
             else 'INFO: ログ無し' end as "T3-h"
 from user_events where actor_id = :'uid' or target_user_id = :'uid';
+
+\echo '--- 2026-09-24追加: messages.body 以外の自由文と決済識別子（I27・I41） ---'
+select case when message is null then 'PASS: いいねの一言は消えている' else 'FAIL: ' || message end as "T3-i"
+from likes where from_user = :'uid' and to_user = :'mid';
+
+select case when not exists (
+              select 1 from jsonb_array_elements(coalesce(proposed_slots,'[]'::jsonb)) s
+              where s ->> 'proposed_by' = :'uid'
+            ) then 'PASS: 本人が提案したデート候補は消えている' else 'FAIL' end as "T3-j"
+from date_proposals where id = :'dp_id';
+
+select case when exists (
+              select 1 from jsonb_array_elements(coalesce(proposed_slots,'[]'::jsonb)) s
+              where s ->> 'proposed_by' = :'mid'
+            ) then 'PASS: 相手が提案したデート候補は残っている（回帰なし）' else 'FAIL' end as "T3-k"
+from date_proposals where id = :'dp_id';
+
+select case when area_suggestion is null then 'PASS: エリア提案は消えている（提案者の記録が無いため）' else 'FAIL' end as "T3-l"
+from date_proposals where id = :'dp_id';
+
+select case when count(*) = 0 then 'PASS: 決済契約行(subscriptions)は削除された' else 'FAIL' end as "T3-m"
+from subscriptions where user_id = :'uid';
 
 \echo ''
 \echo '################ 4. 再登録のクーリング期間（7日） ################'

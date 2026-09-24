@@ -25,8 +25,9 @@ CONTAINER=supabase_db_hapimari
 SUITES=(
   "test_m65_p1:18"
   "test_m66_audit_fixes:17"
-  "test_m67_retention:24"
+  "test_m67_retention:28"
   "test_review2_fixes:23"
+  "test_m73_payment_reconciliation:9"
 )
 FAIL_TOTAL=0
 

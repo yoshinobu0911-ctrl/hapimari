@@ -133,3 +133,37 @@ export function customerIdOf(sub: Stripe.Subscription): string | null {
 export function priceIdOf(sub: Stripe.Subscription): string | null {
   return sub.items?.data?.[0]?.price?.id ?? null;
 }
+
+/** Stripeが「稼働中」とみなす状態（新規Checkoutを止める・退会を止める判定で共用） */
+export const LIVE_SUBSCRIPTION_STATUSES: ReadonlySet<string> = new Set([
+  'active',
+  'trialing',
+  'past_due',
+  'incomplete',
+  'unpaid',
+  'paused',
+]);
+
+/**
+ * Customerの契約を全ページ取得する（M7.3・決済修正§9.2/§9.3で共用）。
+ * 1ページ最大100件。1顧客1〜2契約が通常だが、取りこぼさないよう全ページ回る。
+ */
+export async function listAllSubscriptions(
+  stripe: Stripe,
+  customerId: string,
+): Promise<Stripe.Subscription[]> {
+  const all: Stripe.Subscription[] = [];
+  let startingAfter: string | undefined;
+  for (;;) {
+    const page = await stripe.subscriptions.list({
+      customer: customerId,
+      status: 'all',
+      limit: 100,
+      starting_after: startingAfter,
+    });
+    all.push(...page.data);
+    if (!page.has_more || page.data.length === 0) break;
+    startingAfter = page.data[page.data.length - 1]?.id;
+  }
+  return all;
+}

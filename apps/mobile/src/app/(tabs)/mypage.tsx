@@ -12,6 +12,7 @@ import { colors, radius, sizes, spacing, typography } from '@/constants/theme';
 import { useMyProfile } from '@/hooks/use-my-profile';
 import { useMySubscription } from '@/hooks/use-my-subscription';
 import { confirmDialog, infoDialog } from '@/lib/confirm';
+import { refreshSubscriptionStatus } from '@/lib/subscription-api';
 import { supabase } from '@/lib/supabase';
 
 const MARITAL_LABEL: Record<string, string> = {
@@ -52,6 +53,8 @@ export default function MyPage() {
   };
 
   // M6 A5: 退会（ソフトデリート・2段階確認）
+  // 2026-09-24改訂（決済修正§9.6-1）: 有料プランが残っていると退会できない（§9.5の退会ガード）。
+  // Webhook取りこぼしで固着している場合に備え、専用エラーのときだけ一度だけ状態を同期して再試行する。
   const withdraw = () => {
     confirmDialog(
       '退会について',
@@ -61,7 +64,31 @@ export default function MyPage() {
           '最終確認',
           '本当に退会しますか？この操作のあと、自動的にログアウトします。',
           async () => {
-            const { error } = await supabase.rpc('withdraw_account');
+            let { error } = await supabase.rpc('withdraw_account');
+
+            if (error?.message === 'subscription_active') {
+              const refreshed = await refreshSubscriptionStatus();
+              if (refreshed.ok && refreshed.ended) {
+                ({ error } = await supabase.rpc('withdraw_account'));
+              }
+            }
+
+            if (error?.message === 'subscription_active') {
+              infoDialog(
+                '退会する前に',
+                '有料プランの解約が済んでいません。プラン管理の画面から解約手続きを先に行ってください。',
+              );
+              router.push('/subscription');
+              return;
+            }
+            if (error?.message === 'checkout_pending') {
+              infoDialog(
+                '退会する前に',
+                '決済手続きが完了していません。プラン管理の画面からお手続きの状況をご確認ください。',
+              );
+              router.push('/subscription');
+              return;
+            }
             if (error) {
               infoDialog('エラー', '退会処理に失敗しました。時間をおいてお試しください。');
               return;

@@ -633,6 +633,38 @@ begin
   -- メッセージ本文を削除（誰と何往復したかの事実は学習用に残す）
   update messages set body = '' where sender = p_user;
 
+  -- ------------------------------------------------------------
+  -- 2026-09-24追加（I27）: messages.body 以外に残っていた自由文
+  -- ------------------------------------------------------------
+
+  -- いいねの一言（messages.bodyと同じ扱い。本人が送った分のみ）
+  update likes set message = null where from_user = p_user;
+
+  -- デートの自由文候補のうち、本人が提案した分だけを取り除く（相手が提案した分は残る）。
+  -- confirmed_slot（成立済みの日程・場所）は相手も見ている確定記録のため、ここでは消さない
+  -- （2026-09-24 確認質問1=A採用。area_suggestionは提案者の記録が無く単独の地名程度のため消す）
+  update date_proposals d set
+    proposed_slots = (
+      select coalesce(jsonb_agg(s), '[]'::jsonb)
+      from jsonb_array_elements(coalesce(d.proposed_slots, '[]'::jsonb)) s
+      where s ->> 'proposed_by' <> p_user::text
+    ),
+    area_suggestion = null
+  from matches m
+  where m.id = d.match_id and (m.user_a = p_user or m.user_b = p_user);
+
+  -- 行動ログは行を残したまま紐付けだけ外す（件数の集計は壊れない）
+  update user_events set actor_id = null, target_user_id = null, props = '{}'::jsonb
+  where actor_id = p_user or target_user_id = p_user;
+
+  -- ------------------------------------------------------------
+  -- 2026-09-24追加（I41）: 決済識別子の削除
+  -- 前提: 決済修正（M7.3・20260924100000）のwithdraw_accountガードにより、
+  -- 稼働中の契約が残ったままでは退会できない。したがってここに到達する時点
+  -- （退会から90日経過）で、この行がStripe側で未精算のまま残っていることはない。
+  -- ------------------------------------------------------------
+  delete from subscriptions where user_id = p_user;
+
   -- プロフィール: 特徴量へ変換し、個人を特定できる列を消す
   update profiles set
     age_band = public._age_band(birth_date),
@@ -770,17 +802,11 @@ CREATE OR REPLACE FUNCTION "public"."expire_stale_subscriptions"() RETURNS integ
 declare
   n integer;
 begin
-  update subscriptions
-     set status = 'canceled', updated_at = now()
-   where status in ('active', 'trialing')
-     and current_period_end is not null
-     and current_period_end <= now() - interval '3 days';
-  get diagnostics n = row_count;
-
-  -- Webhook取りこぼし対策: フラグと実態のズレを一括で直す
+  -- Webhook取りこぼし対策: フラグと実態のズレを一括で直す（戻り値は補正した件数）
   update profiles p
      set subscription_active = public.is_subscription_active(p.id)
    where p.subscription_active is distinct from public.is_subscription_active(p.id);
+  get diagnostics n = row_count;
 
   return n;
 end $$;
@@ -1488,7 +1514,19 @@ CREATE OR REPLACE FUNCTION "public"."withdraw_account"() RETURNS "jsonb"
     LANGUAGE "plpgsql" SECURITY DEFINER
     SET "search_path" TO 'public'
     AS $$
+declare
+  sub record;
 begin
+  select status, pending_checkout_session_id into sub
+    from subscriptions where user_id = auth.uid();
+
+  if sub.status in ('active', 'trialing', 'past_due', 'incomplete', 'unpaid', 'paused') then
+    raise exception 'subscription_active';
+  end if;
+  if sub.pending_checkout_session_id is not null then
+    raise exception 'checkout_pending';
+  end if;
+
   update profiles set status = 'withdrawn', withdrawn_at = now()
   where id = auth.uid() and status <> 'withdrawn';
   if not found then
@@ -2678,11 +2716,23 @@ ALTER TABLE "public"."reports" OWNER TO "postgres";
 CREATE TABLE IF NOT EXISTS "public"."stripe_events" (
     "id" "text" NOT NULL,
     "type" "text" NOT NULL,
-    "received_at" timestamp with time zone DEFAULT "now"() NOT NULL
+    "received_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "processed_at" timestamp with time zone,
+    "needs_review" boolean DEFAULT false NOT NULL
 );
 
 
 ALTER TABLE "public"."stripe_events" OWNER TO "postgres";
+
+
+COMMENT ON COLUMN "public"."stripe_events"."processed_at" IS '課金状態への反映が完了した時刻。NULLは未処理（Stripeの再送で再処理してよい）。
+   旧実装は insert 成功だけを冪等性の根拠にし、失敗時に行を delete していたため、
+   輻輳配送（Stripeの再送）時に記録が残らないまま処理済み扱いになる穴があった';
+
+
+
+COMMENT ON COLUMN "public"."stripe_events"."needs_review" IS '自動判断できなかった通知（複数有効契約・対応不明・照合失敗の恒久化）。運営が手動確認するまでtrue';
+
 
 
 CREATE TABLE IF NOT EXISTS "public"."subscriptions" (
@@ -2695,6 +2745,8 @@ CREATE TABLE IF NOT EXISTS "public"."subscriptions" (
     "cancel_at_period_end" boolean DEFAULT false NOT NULL,
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
     "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "pending_checkout_session_id" "text",
+    "last_event_created" bigint,
     CONSTRAINT "subscriptions_plan_check" CHECK (("plan" = ANY (ARRAY['male_1m'::"text", 'male_3m'::"text", 'male_6m'::"text"]))),
     CONSTRAINT "subscriptions_status_check" CHECK (("status" = ANY (ARRAY['incomplete'::"text", 'incomplete_expired'::"text", 'trialing'::"text", 'active'::"text", 'past_due'::"text", 'canceled'::"text", 'unpaid'::"text", 'paused'::"text"])))
 );
@@ -2708,6 +2760,15 @@ COMMENT ON TABLE "public"."subscriptions" IS '課金の唯一の正。書き込�
 
 
 COMMENT ON COLUMN "public"."subscriptions"."current_period_end" IS 'この日時までは有料機能を利用できる。解約予約時もこの日時までは利用可';
+
+
+
+COMMENT ON COLUMN "public"."subscriptions"."pending_checkout_session_id" IS '発行済みで結果未確定のCheckout Session ID、または予約中を示す一時トークン（"reserving:"始まり）。
+   二重発行の防止に使う。完了・失効・予約タイムアウトで必ずNULLに戻す';
+
+
+
+COMMENT ON COLUMN "public"."subscriptions"."last_event_created" IS '反映済み最新イベントのStripe event.created（秒）。契約IDが変わったらNULLに戻す';
 
 
 

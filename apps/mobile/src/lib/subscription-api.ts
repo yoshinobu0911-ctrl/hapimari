@@ -49,6 +49,14 @@ export interface CancelSuccess {
 
 export type CancelResult = CancelSuccess | StripeFunctionFailure;
 
+export interface RefreshSuccess {
+  ok: true;
+  /** true=Stripe側で契約終了を確認しDBへ同期した（このあとwithdraw_accountを再試行できる） */
+  ended: boolean;
+}
+
+export type RefreshResult = RefreshSuccess | StripeFunctionFailure;
+
 /** FunctionsHttpError のボディから { error, message } を取り出す（like-api.ts と同型） */
 async function invokeStripeFunction<T extends { ok: true }>(
   name: 'stripe-checkout' | 'stripe-cancel',
@@ -91,4 +99,12 @@ export function cancelSubscription(): Promise<CancelResult> {
 /** 解約予約を取り消す */
 export function resumeSubscription(): Promise<CancelResult> {
   return invokeStripeFunction<CancelSuccess>('stripe-cancel', { resume: true });
+}
+
+/**
+ * Stripeの契約を変更せず、現在の終了状態をDBへ同期するだけ（2026-09-24追加・決済修正§9.4）。
+ * Webhookを取りこぼして固着した会員が、退会画面から抜け出せるようにするための呼び出し。
+ */
+export function refreshSubscriptionStatus(): Promise<RefreshResult> {
+  return invokeStripeFunction<RefreshSuccess>('stripe-cancel', { refresh: true });
 }

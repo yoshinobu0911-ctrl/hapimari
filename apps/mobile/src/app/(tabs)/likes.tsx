@@ -1,15 +1,14 @@
 import {
-  assignVisibleDates,
   type CompatibilityInput,
   calcCompatibility,
-  FEMALE_DAILY_LIKE_LIMIT,
   shouldShowCompatibility,
 } from '@hapimari/shared';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useEffect } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { ProfilePhoto } from '@/components/profile-photo';
+import { AppButton } from '@/components/ui/app-button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Screen } from '@/components/ui/screen';
@@ -19,12 +18,21 @@ import { useMyProfile } from '@/hooks/use-my-profile';
 import { type Profile, type PublicProfile, supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/auth';
 
-type LikeRow = {
-  id: string;
+/** get_received_likes_page の1行（I15） */
+type ReceivedLikeRow = {
+  like_id: string;
   from_user: string;
-  to_user: string;
   message: string | null;
   created_at: string | null;
+  carried_over_count: number;
+};
+
+/** 1回の取得件数（RPC 側で 1〜100 に丸められる） */
+const PAGE_SIZE = 50;
+
+type LikesPage = {
+  likes: ReceivedLikeRow[];
+  profiles: Record<string, PublicProfile>;
 };
 
 function toCompatInput(p: Profile | PublicProfile): CompatibilityInput {
@@ -38,6 +46,8 @@ function toCompatInput(p: Profile | PublicProfile): CompatibilityInput {
 /**
  * お相手から（もらったいいね一覧・docs/design/M3_design.md §5.4）
  * R4: いいねは全件保存されるが、女性側の表示は1日100件まで。超過分は翌日以降に繰越表示。
+ * I15: 表示日の割当は DB（get_received_likes_page）で全件に対して行い、新しい順に50件ずつ取る。
+ *   旧実装の「全件取得→画面で割当」は max_rows=1000 で無言に打ち切られ、新着が欠けていた。
  * カードは一覧カードと同じ原則（写真・名前・年齢・相性85%+のみ + 一言メッセージ）。
  */
 export default function Likes() {
@@ -47,33 +57,36 @@ export default function Likes() {
   const { data: myProfile } = useMyProfile();
   const myId = session?.user.id ?? '';
 
-  const query = useQuery({
+  const query = useInfiniteQuery({
     queryKey: ['received-likes', myId],
     enabled: !!session,
-    queryFn: async () => {
-      const { data: likes, error } = await supabase
-        .from('likes')
-        .select('*')
-        .eq('to_user', myId)
-        .order('created_at', { ascending: true });
+    initialPageParam: null as { createdAt: string | null; id: string } | null,
+    queryFn: async ({ pageParam }): Promise<LikesPage> => {
+      // 表示日の割当（R4 繰越）とブロック・退会の除外は DB 側で済んでいる（I15）
+      const { data, error } = await supabase.rpc('get_received_likes_page', {
+        p_before_created_at: pageParam?.createdAt ?? undefined,
+        p_before_id: pageParam?.id ?? undefined,
+        p_limit: PAGE_SIZE,
+      });
       if (error) throw error;
+      const likes = (data ?? []) as ReceivedLikeRow[];
       const senderIds = [...new Set(likes.map((l) => l.from_user))];
-      if (senderIds.length === 0) {
-        return { likes: likes as LikeRow[], profiles: {} as Record<string, PublicProfile> };
-      }
-      // ブロック・退会・凍結済みの送り主はビューの条件により返らない（→一覧から除外される）
+      if (senderIds.length === 0) return { likes, profiles: {} };
+      // 表示に使う公開プロフィールは profiles_public から（公開範囲の判定をビューに一元化）
       const { data: profiles, error: profileError } = await supabase
         .from('profiles_public')
         .select('*')
         .in('id', senderIds);
       if (profileError) throw profileError;
       return {
-        likes: likes as LikeRow[],
-        profiles: Object.fromEntries((profiles as PublicProfile[]).map((p) => [p.id, p])) as Record<
-          string,
-          PublicProfile
-        >,
+        likes,
+        profiles: Object.fromEntries((profiles as PublicProfile[]).map((p) => [p.id, p])),
       };
+    },
+    getNextPageParam: (lastPage) => {
+      if (lastPage.likes.length < PAGE_SIZE) return undefined;
+      const last = lastPage.likes[lastPage.likes.length - 1];
+      return last ? { createdAt: last.created_at, id: last.like_id } : undefined;
     },
   });
 
@@ -97,11 +110,15 @@ export default function Likes() {
 
   const me = myProfile ? toCompatInput(myProfile) : null;
 
-  // 表示できる送り主のいいねだけを対象に、R4の表示繰越を適用
-  const withProfile = (query.data?.likes ?? []).filter((l) => query.data?.profiles[l.from_user]);
-  const limit = myProfile?.gender === 'female' ? FEMALE_DAILY_LIKE_LIMIT : Number.POSITIVE_INFINITY;
-  const { visible, carriedOver } = assignVisibleDates(withProfile, limit);
-  const items = [...visible].reverse(); // 新しい順に表示
+  // 取得済みページを連結（RPC が新しい順・表示日割当済みで返す）
+  const pages = query.data?.pages ?? [];
+  const profiles: Record<string, PublicProfile> = Object.assign(
+    {},
+    ...pages.map((page) => page.profiles),
+  );
+  const items = pages.flatMap((page) => page.likes);
+  // 繰越件数は全体の件数（取得済みページの件数からは計算しない）
+  const carriedOverCount = pages[0]?.likes[0]?.carried_over_count ?? 0;
 
   return (
     <Screen title="お相手からのいいね" scroll={false}>
@@ -129,18 +146,18 @@ export default function Likes() {
         />
       ) : (
         <ScrollView contentContainerStyle={styles.list} testID="likes-list">
-          {carriedOver.length > 0 ? (
+          {carriedOverCount > 0 ? (
             <Text style={styles.carryNote} testID="likes-carryover">
-              ほかに {carriedOver.length} 件のいいねがあり、明日以降に表示されます。
+              ほかに {carriedOverCount} 件のいいねがあり、明日以降に表示されます。
             </Text>
           ) : null}
           {items.map((like) => {
-            const sender = query.data?.profiles[like.from_user];
+            const sender = profiles[like.from_user];
             if (!sender) return null;
             const compatibility = me ? calcCompatibility(me, toCompatInput(sender)) : 0;
             return (
               <Card
-                key={like.id}
+                key={like.like_id}
                 padded={false}
                 accessibilityLabel={`${sender.nickname}さんからのいいね`}
                 onPress={() => router.push(`/profile/${sender.id}`)}
@@ -170,6 +187,15 @@ export default function Likes() {
               </Card>
             );
           })}
+          {query.hasNextPage ? (
+            <AppButton
+              label="さらに表示"
+              variant="secondary"
+              onPress={() => query.fetchNextPage()}
+              loading={query.isFetchingNextPage}
+              testID="likes-more"
+            />
+          ) : null}
         </ScrollView>
       )}
     </Screen>

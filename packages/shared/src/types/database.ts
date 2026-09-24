@@ -1089,6 +1089,21 @@ export type Database = {
           user_id: string
         }[]
       }
+      get_received_likes_page: {
+        Args: {
+          p_before_created_at?: string
+          p_before_id?: string
+          p_limit?: number
+        }
+        Returns: {
+          carried_over_count: number
+          created_at: string
+          display_date: string
+          from_user: string
+          like_id: string
+          message: string
+        }[]
+      }
       get_suppression_list: {
         Args: never
         Returns: {

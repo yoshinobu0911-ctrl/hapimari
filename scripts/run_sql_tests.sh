@@ -31,6 +31,7 @@ SUITES=(
   "test_i08_latest_messages:11"
   "test_p2_photo_viewer_active:21"
   "test_block_query_scope:20"
+  "test_i15_received_likes_page:13"
 )
 FAIL_TOTAL=0
 

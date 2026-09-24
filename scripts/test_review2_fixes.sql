@@ -190,6 +190,7 @@ from (
 -- 2026-09-26 I08: get_my_latest_messages を追加（画面から直接呼ぶ RPC）。19→20本。
 -- 2026-09-26 I29: is_blocked_between / is_match_blocked は当事者限定の入口として残す（ビュー・RLS が
 -- 利用者権限で呼ぶため）。内部判定は private スキーマ（T6-d/e で検査）。
+-- 2026-09-26 I15: get_received_likes_page を追加（画面から直接呼ぶ RPC）。20→21本。
 create temp table t6_allow(sig text);
 insert into t6_allow(sig) values
   ('can_caller_message()'),
@@ -197,6 +198,7 @@ insert into t6_allow(sig) values
   ('get_date_status(uuid)'),
   ('get_my_latest_messages()'),
   ('get_profile_distances(uuid[])'),
+  ('get_received_likes_page(timestamp with time zone,uuid,integer)'),
   ('is_blocked_between(uuid,uuid)'),
   ('is_caller_active()'),
   ('is_match_blocked(uuid)'),
@@ -224,7 +226,7 @@ select case when count(*) = 0 then 'PASS: 許可リスト外で authenticated �
 from t6_actual where sig not in (select sig from t6_allow);
 
 \echo '--- T6-c: 許可リストの関数が実行可能なまま（revokeのやりすぎ検知） ---'
-select case when count(*) = 0 then 'PASS: 許可リスト20本はすべて実行可能'
+select case when count(*) = 0 then 'PASS: 許可リスト21本はすべて実行可能'
             else 'FAIL: 実行できなくなった関数が ' || count(*) || '件 (' || string_agg(sig, ', ') || ')' end
 from t6_allow where sig not in (select sig from t6_actual);
 

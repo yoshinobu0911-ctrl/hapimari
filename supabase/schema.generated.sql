@@ -1031,6 +1031,80 @@ $$;
 ALTER FUNCTION "public"."get_profile_distances"("p_user_ids" "uuid"[]) OWNER TO "postgres";
 
 
+CREATE OR REPLACE FUNCTION "public"."get_received_likes_page"("p_before_created_at" timestamp with time zone DEFAULT NULL::timestamp with time zone, "p_before_id" "uuid" DEFAULT NULL::"uuid", "p_limit" integer DEFAULT 50) RETURNS TABLE("like_id" "uuid", "from_user" "uuid", "message" "text", "created_at" timestamp with time zone, "display_date" "date", "carried_over_count" integer)
+    LANGUAGE "plpgsql" STABLE
+    SET "search_path" TO 'public'
+    AS $$
+declare
+  v_uid uuid := auth.uid();
+  v_daily_limit integer;          -- null = 無制限
+  v_today date := (now() at time zone 'Asia/Tokyo')::date;
+  v_cur date := null;
+  v_cnt integer := 0;
+  v_cand date;
+  v_page integer := least(greatest(coalesce(p_limit, 50), 1), 100);
+  v_carried integer := 0;
+  v_ids uuid[] := '{}';
+  v_dates date[] := '{}';
+  r record;
+begin
+  if v_uid is null then
+    return;
+  end if;
+
+  select case when p.gender = 'female' then 100 else null end
+    into v_daily_limit
+  from profiles p where p.id = v_uid;
+
+  for r in
+    select l.id, l.created_at
+    from likes l
+    where l.to_user = v_uid
+      and l.from_user in (select pp.id from profiles_public pp)
+    order by l.created_at asc nulls first, l.id asc
+  loop
+    v_cand := case when r.created_at is null then v_today
+                   else (r.created_at at time zone 'Asia/Tokyo')::date end;
+    if v_cur is not null and v_cand < v_cur then
+      v_cand := v_cur;
+    end if;
+    if v_cur is distinct from v_cand then
+      v_cur := v_cand;
+      v_cnt := 0;
+    end if;
+    if v_daily_limit is not null and v_cnt >= v_daily_limit then
+      v_cur := v_cur + 1;
+      v_cnt := 0;
+    end if;
+    v_cnt := v_cnt + 1;
+    if v_cur <= v_today then
+      v_ids := v_ids || r.id;
+      v_dates := v_dates || v_cur;
+    else
+      v_carried := v_carried + 1;
+    end if;
+  end loop;
+
+  return query
+    select l.id, l.from_user, l.message, l.created_at, a.d, v_carried
+    from unnest(v_ids, v_dates) as a(id, d)
+    join likes l on l.id = a.id
+    where p_before_id is null
+       or (coalesce(l.created_at, '-infinity'::timestamptz), l.id)
+          < (coalesce(p_before_created_at, '-infinity'::timestamptz), p_before_id)
+    order by coalesce(l.created_at, '-infinity'::timestamptz) desc, l.id desc
+    limit v_page;
+end;
+$$;
+
+
+ALTER FUNCTION "public"."get_received_likes_page"("p_before_created_at" timestamp with time zone, "p_before_id" "uuid", "p_limit" integer) OWNER TO "postgres";
+
+
+COMMENT ON FUNCTION "public"."get_received_likes_page"("p_before_created_at" timestamp with time zone, "p_before_id" "uuid", "p_limit" integer) IS 'I15: 受信いいねを R4 の表示日割当（女性受信者は1日100件・超過は翌日以降へ繰越）の後で新しい順にページ化して返す。カーソルは直前ページ最終行の (created_at, like_id)。carried_over_count は全体の繰越件数。INVOKER で likes の RLS に従い to_user=auth.uid() に限定';
+
+
+
 CREATE OR REPLACE FUNCTION "public"."get_suppression_list"() RETURNS TABLE("email_hash" "text")
     LANGUAGE "sql" STABLE SECURITY DEFINER
     SET "search_path" TO 'public'
@@ -3972,6 +4046,12 @@ GRANT ALL ON FUNCTION "public"."get_pending_file_deletions"() TO "service_role";
 REVOKE ALL ON FUNCTION "public"."get_profile_distances"("p_user_ids" "uuid"[]) FROM PUBLIC;
 GRANT ALL ON FUNCTION "public"."get_profile_distances"("p_user_ids" "uuid"[]) TO "authenticated";
 GRANT ALL ON FUNCTION "public"."get_profile_distances"("p_user_ids" "uuid"[]) TO "service_role";
+
+
+
+REVOKE ALL ON FUNCTION "public"."get_received_likes_page"("p_before_created_at" timestamp with time zone, "p_before_id" "uuid", "p_limit" integer) FROM PUBLIC;
+GRANT ALL ON FUNCTION "public"."get_received_likes_page"("p_before_created_at" timestamp with time zone, "p_before_id" "uuid", "p_limit" integer) TO "authenticated";
+GRANT ALL ON FUNCTION "public"."get_received_likes_page"("p_before_created_at" timestamp with time zone, "p_before_id" "uuid", "p_limit" integer) TO "service_role";
 
 
 

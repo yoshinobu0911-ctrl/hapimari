@@ -18,12 +18,15 @@
 1. `docs/design/M{n}_design.md` — マイルストーン設計書。**SPEC.md と矛盾する場合は設計書を優先**（ユーザー承認済みの変更を含むため）
 2. `SPEC.md` — 上位仕様（技術スタック・データモデル・ビジネスルール・マイルストーン）
 3. 本ファイル — 働き方のルール
+4. `AGENTS.md` — 複数AI（Claude Code / Codex / Grok 等）で作業を分けるルール（作業フォルダ・ブランチ・共有ファイルの書き方）。全AI共通。次の行で自動読み込みされる
+
+@AGENTS.md
 
 不明点の扱い: **ブロッカー**は `QUESTIONS.md` に書いて停止。**非ブロッカー**は暫定判断を記録して続行し、完了報告で必ず言及する。
 
 ## 3. この環境の必須知識（実際に発生したハマりどころ）
 
-- 作業は必ず `C:\Users\haosh\dev\hapimari` で行う。**日本語を含むパスでは Supabase CLI が exit 0 のままサイレント失敗する**
+- 作業は `C:\Users\haosh\dev\` 配下の英数字だけのパスで行う（本体 `hapimari` と、AIごとの作業フォルダ `hapimari-<AI名>`。割り当ては `AGENTS.md` §1）。**日本語を含むパスでは Supabase CLI が exit 0 のままサイレント失敗する**
 - シェル起動ごとに PATH 補正: `$env:Path = "C:\Program Files\nodejs;C:\Users\haosh\AppData\Roaming\npm;$env:Path"`
 - 新規テーブルは **RLS + 明示 GRANT をセット**で書く（GRANT を忘れると REST が 403 になる）
 - スキーマ反映は `pnpm exec supabase migration up` を使う（`db reset` は手動登録ユーザーを消す）

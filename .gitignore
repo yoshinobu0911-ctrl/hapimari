@@ -24,3 +24,6 @@ Thumbs.db
 # editor
 .idea/
 .vscode/
+
+# AIツールがリポジトリ内に作る作業フォルダ（git worktree）。本体の変更として混入させない（AGENTS.md §1）
+.claude/worktrees/

@@ -10,7 +10,7 @@
  * 発行条件（すべて満たすこと）:
  *   1. ログイン済み・status = 'active'・本人確認済み
  *   2. そのマッチの当事者である
- *   3. マッチがブロックされていない
+ *   3. マッチがブロックされていない（判定が取れない場合も発行しない。I28）
  *   4. お相手が active かつ本人確認済みである
  * 課金状態は条件にしない（2026-08-19 オーナー決定）。
  * 本人確認は当初「条件にしない」（08-25決定）だったが、出会い系サイト規制法の
@@ -23,6 +23,7 @@
 
 import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2';
 import { RtcRole, RtcTokenBuilder } from 'npm:agora-token@2.0.5';
+import { interpretBlockCheck } from '../_shared/call_token_rules.ts';
 
 /** 30分（1800秒）＋接続・応答待ちの猶予60秒 */
 const DEFAULT_TOKEN_TTL_SECONDS = 1860;
@@ -134,9 +135,20 @@ Deno.serve(async (req) => {
       return fail(404, 'not_found', 'この通話はご利用いただけません。');
     }
 
-    const { data: blocked } = await admin.rpc('is_match_blocked', { target_match: matchId });
-    if (blocked === true) {
+    const { data: blockedData, error: blockedError } = await admin.rpc('is_match_blocked', {
+      target_match: matchId,
+    });
+    const blockCheck = interpretBlockCheck({ data: blockedData, error: blockedError });
+    if (blockCheck === 'blocked') {
       return fail(403, 'blocked', 'この通話はご利用いただけません。');
+    }
+    if (blockCheck !== 'clear') {
+      // 判定できないときは発行しない（fail-closed）。ID・値はログに出さず原因の種類だけ残す
+      console.error(
+        'agora-token block check unavailable',
+        blockedError ? blockedError.code || 'rpc_error' : 'non_boolean',
+      );
+      return internalError();
     }
 
     const partnerId = match.user_a === user.id ? match.user_b : match.user_a;

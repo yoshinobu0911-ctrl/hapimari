@@ -17,7 +17,11 @@ import {
   LIKE_MESSAGE_MAX_LENGTH,
 } from '../../../packages/shared/src/constants.ts';
 import { findFraudWords } from '../../../packages/shared/src/fraud_words.ts';
-import { type LikeRuleUser, validateLike } from '../../../packages/shared/src/like_rules.ts';
+import {
+  type LikeRuleUser,
+  validateLike,
+  validateLikeSender,
+} from '../../../packages/shared/src/like_rules.ts';
 
 // 暴力性を示唆するカテゴリ（OpenAI moderations の categories キー）。
 // 固定辞書（abuse_words.ts）の補完として、辞書に無い言い回しの暴力表現も検知する。
@@ -79,6 +83,7 @@ function toRuleUser(p: ProfileRow): LikeRuleUser {
     id: p.id,
     gender: p.gender as LikeRuleUser['gender'],
     status: p.status,
+    isVerified: p.is_verified === true,
     hasChildren: p.has_children,
     understandsChildren: p.understands_children,
   };
@@ -183,11 +188,13 @@ Deno.serve(async (req) => {
   // （一言メッセージが未確認のまま相手に届くのを防ぐ。出会い系サイト規制法の
   //   年齢確認を安全側に倒す 2026-08-26 オーナー決定。
   //   docs/decisions/2026-08-26_確認前操作の安全側変更.md）
-  if ((senderRow as ProfileRow).is_verified !== true) {
-    return json(403, {
+  const sender = toRuleUser(senderRow as ProfileRow);
+  const senderVerdict = validateLikeSender(sender);
+  if (!senderVerdict.ok) {
+    return json(senderVerdict.status, {
       ok: false,
-      error: 'not_verified',
-      message: '本人確認の完了後にご利用いただけます。お手続きの完了をお待ちください。',
+      error: senderVerdict.error,
+      message: senderVerdict.message,
     });
   }
 
@@ -210,7 +217,7 @@ Deno.serve(async (req) => {
   }
 
   const verdict = validateLike(
-    toRuleUser(senderRow as ProfileRow),
+    sender,
     targetRow ? toRuleUser(targetRow as ProfileRow) : null,
     blocked === true,
   );

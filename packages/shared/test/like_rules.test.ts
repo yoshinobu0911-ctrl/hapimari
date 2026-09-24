@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { type LikeRuleUser, validateLike } from '../src/like_rules';
+import { type LikeRuleUser, validateLike, validateLikeSender } from '../src/like_rules';
 
 function user(overrides: Partial<LikeRuleUser> = {}): LikeRuleUser {
   return {
     id: 'user-1',
     gender: 'male',
     status: 'active',
+    isVerified: true,
     hasChildren: false,
     understandsChildren: false,
     ...overrides,
@@ -68,5 +69,40 @@ describe('validateLike', () => {
       expect(result.error).toBe('not_active');
       expect(result.status).toBe(403);
     }
+  });
+
+  it('本人確認未了の送信者は not_verified（403・従来と同じ案内文）', () => {
+    expect(validateLike(user({ id: 'm2', isVerified: false }), female, false)).toEqual({
+      ok: false,
+      error: 'not_verified',
+      status: 403,
+      message: '本人確認の完了後にご利用いただけます。お手続きの完了をお待ちください。',
+    });
+  });
+
+  it('本人確認未了は他のどの拒否理由より先に判定される', () => {
+    const u = user({ id: 'm3', isVerified: false });
+    const uSuspended = user({ id: 'm3', isVerified: false, status: 'suspended' });
+    const cases: Array<[LikeRuleUser, LikeRuleUser | null, boolean]> = [
+      [uSuspended, female, false], // 送信者が非active
+      [u, user({ id: 'm3', gender: 'female' }), false], // 自分自身
+      [u, null, false], // 相手なし
+      [u, user({ id: 'm9', gender: 'male' }), false], // 同性
+      [u, female, true], // ブロック
+    ];
+    for (const [s, t, b] of cases) {
+      expect(validateLike(s, t, b)).toMatchObject({ ok: false, error: 'not_verified' });
+    }
+  });
+
+  it('相手の本人確認状態は判定しない（現行挙動の固定。2026-08-26決定は送信者のみ必須化）', () => {
+    const unverifiedFemale = user({ id: 'f3', gender: 'female', isVerified: false });
+    expect(validateLike(male, unverifiedFemale, false).ok).toBe(true);
+  });
+
+  it('validateLikeSender は本人確認だけを見る（status は validateLike の後段で判定）', () => {
+    expect(validateLikeSender(user({ status: 'suspended' }))).toEqual({ ok: true });
+    const unverified = user({ isVerified: false });
+    expect(validateLikeSender(unverified)).toEqual(validateLike(unverified, female, false));
   });
 });

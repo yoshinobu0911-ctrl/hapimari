@@ -11,12 +11,11 @@
  * 失敗:  { ok: false, error: string, message: string }（statusは LIKE_ERROR_STATUS 準拠）
  */
 import { createClient } from 'npm:@supabase/supabase-js@2';
-import { findAbuseWords } from '../../../packages/shared/src/abuse_words.ts';
 import {
   FEMALE_DAILY_LIKE_LIMIT,
   LIKE_MESSAGE_MAX_LENGTH,
 } from '../../../packages/shared/src/constants.ts';
-import { findFraudWords } from '../../../packages/shared/src/fraud_words.ts';
+import { findAbuseWords, findFraudWords } from '../../../packages/shared/src/fraud_words.ts';
 import {
   type LikeRuleUser,
   validateLike,
@@ -25,7 +24,7 @@ import {
 import { corsHeaders, json } from '../_shared/http.ts';
 
 // 暴力性を示唆するカテゴリ（OpenAI moderations の categories キー）。
-// 固定辞書（abuse_words.ts）の補完として、辞書に無い言い回しの暴力表現も検知する。
+// 固定辞書（fraud_words.ts の ABUSE_WORDS）の補完として、辞書に無い言い回しの暴力表現も検知する。
 const VIOLENT_MODERATION_CATEGORIES = [
   'violence',
   'violence/graphic',
@@ -36,7 +35,7 @@ const VIOLENT_MODERATION_CATEGORIES = [
 /**
  * 一言メッセージの暴力性をAIで判定する（2026-09-09オーナー指示・固定辞書との多層防御）。
  * MESSAGE_MODERATION_API_KEY 未設定、またはAPI障害時は false を返し、
- * 固定辞書（abuse_words.ts）による遮断のみで運用する（フェイルオープン。送信自体は
+ * 固定辞書（fraud_words.ts の ABUSE_WORDS）による遮断のみで運用する（フェイルオープン。送信自体は
  * 止めない＝いいね機能全体がAI障害で止まらないようにする）。
  */
 async function isMessageViolent(text: string, apiKey: string): Promise<boolean> {

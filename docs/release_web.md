@@ -40,7 +40,7 @@ supabase db push                 # migration をすべて適用（2026-09-26 時
 > **順番が重要（2026-09-26 追記・統合表 I31）**: Edge Functions を先にデプロイし、そのあと `db push`。
 > `agora-token` は I28（ブロック判定が取れないときは発行しない）を含む版を、I29（ブロック照会の当事者限定）の migration より先に入れる。
 > アプリ（STEP 3）の配信は DB の反映より後（I08・I15 の新しい関数が DB に無いと一覧が読み込みエラーになる）。
-> ⚠️ 2026-09-26 時点の既知不具合: `like` 関数は `packages/shared/src/abuse_words.ts` の拡張子なし import のため Edge Runtime で起動しない（`docs/review/2026-09-26_夜間作業報告.md`）。**解消してからデプロイすること。**
+> 注意: Edge Function から読む `packages/shared/src/` のファイルでは、拡張子なしの相対 import（`from './x'`）を使わないこと。Deno が解決できず関数が起動しない（2026-09-26 に like で発生・修正済み）。
 
 **シークレットの設定**（値は中村さんが用意・Gitには入れない）:
 

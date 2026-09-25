@@ -26,6 +26,9 @@
 
 ## ✅ 完了したこと（Done）
 <!-- 新しいものを上に。日付(YYYY-MM-DD)とツール名を添える。 -->
+- 2026-09-26 (Claude/Opus 5.5): **origin/main へ push（PR #1 に夜間分20コミットを追加・先頭 `99b865d`）し、レビューコメント11件へ返信を投稿**（オーナー指示。返信ID 4101941139〜4101944178、本文をAPIで再取得して下書きと一致を確認）。レビュアーへのチャット連絡は不要とのオーナー指示
+- 2026-09-25 (Claude/Fable 5.1): **公開前修正バッチの設計差分を作成（承認待ち）** → [設計差分](docs/design/2026-09-25_公開前修正バッチ_設計差分.md)。オーナー決定 Q1=B／Q2=A／Q3=A を [決定記録](docs/decisions/2026-09-25_セキュリティ統合レビューの方針決定.md) に記録。対象: 決済 must 4件＋S1/S3/S11＋N1〜N5（migration 5本・Edge Function 4本・画面・SQL テスト4スイート）。確認質問3点。コード・DB 未変更
+- 2026-09-25 (Claude/Fable 5.1): **セキュリティ統合レビュー**（HEAD 99b865d・静的・読み取り専用）→ [統合レビュー](docs/review/2026-09-25_セキュリティ統合レビュー_Fable5.1.md)。Fable 3領域並列＋[Codex 監査](docs/review/2026-09-25_外部レビュー_codex_夜間コミット監査.md)＋[Grok 第二意見](docs/review/2026-09-25_外部レビュー_Grok_第二意見.md)を突き合わせ。夜間19コミットは退行なし（F/C 一致）。公開前の新規5件（N1 退会相手へのメッセージ／N2 Storage copy 写真複製／N3 I32③ 案A 却下／N4 verifications CHECK／N5 frame 拒否ヘッダ）と決定3点を tasks.md に登録。コード・DB 未変更・未コミット
 - 2026-09-26 (Claude/Opus 5.5): **like 関数が Edge Runtime で起動しない不具合を修正**（暴言辞書を fraud_words.ts へ移設・abuse_words.ts は再公開のみ）→ [受け入れ記録](docs/acceptance/2026-09-26_like起動不具合.md)。検証: 一時パッチなしで5関数起動、like 8ケースが以前の実測と完全一致、暴言は 400 abuse_message／vitest 121／tsc 3パッケージ0／biome 0。オーナー承認で夜間分と合わせて origin/main へ push。決済 must 4件はオーナー指示で一旦保留
 - 2026-09-26 (Claude/Opus 5.5・夜間): **夜間自律作業を終了**（モードA。00:55 のオーナー指示で Opus も全範囲可）→ [夜間作業報告](docs/review/2026-09-26_夜間作業報告.md)。最終検証: SQL 10スイート168件全合格／vitest 121／biome 0／tsc 3パッケージ0。Edge Function 実行検証と P3（I12/I13）実測 → [記録](docs/review/2026-09-26_P3実測とEdgeFunction実行検証.md)。push・本番反映はしていない
 - 2026-09-26 (Claude/Opus 5.5・夜間): **I31 古い受け入れ条件と公開手順を訂正**（SPEC §6/§8 に現行条件を併記、launch_checklist、release_web の deploy 対象に agora-token・順序・Agora 等のシークレット）→ [受け入れ記録](docs/acceptance/2026-09-26_I31.md)。文書のみ。I38 は `.env.example` 編集のため夜間ルールに従い保留
